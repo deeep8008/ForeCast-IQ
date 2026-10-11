@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Calendar,
   Layers,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import ForecastChart from '../components/ForecastChart';
 import { useDataset } from '../context/DatasetContext';
@@ -53,6 +54,7 @@ export default function GenerateForecastPage({ onNavigate }) {
     uploadFiles,
     mapAndProcessSchema,
     preloadM5Dataset,
+    resetWorkflow,
     uploadPreview,
     setUploadPreview,
     runBenchmark,
@@ -75,6 +77,7 @@ export default function GenerateForecastPage({ onNavigate }) {
   const [timeCol, setTimeCol] = useState('');
   const [targetCol, setTargetCol] = useState('');
   const [seriesCol, setSeriesCol] = useState('');
+  const [secondarySeriesCol, setSecondarySeriesCol] = useState('');
 
   // Future Forecast Options
   const [localHorizon, setLocalHorizon] = useState(selectedHorizon || 28);
@@ -114,7 +117,7 @@ export default function GenerateForecastPage({ onNavigate }) {
     clearError();
     const csvFiles = files.filter(f => f.name.toLowerCase().endsWith('.csv'));
     if (csvFiles.length === 0) {
-      setUploadWarning('⚠️ No .csv files found in your selection. Please select one or more .csv files.');
+      setUploadWarning('No .csv files found in your selection. Please select one or more .csv files.');
       setSelectedFiles([]);
       return;
     }
@@ -133,14 +136,23 @@ export default function GenerateForecastPage({ onNavigate }) {
     try {
       const preview = await uploadFiles(selectedFiles, datasetName);
       if (preview && preview.available_columns) {
+        // Auto-guess columns cleanly without collisions
         const cols = preview.available_columns;
-        const autoTime = cols.find(c => /date|time|timestamp|day|d$/i.test(c)) || cols[0] || '';
-        const autoTarget = cols.find(c => /sales|target|units|demand|volume|qty/i.test(c)) || (cols.length > 1 ? cols[1] : '');
-        const autoSeries = cols.find(c => /series|item_id|store_id|product|id$/i.test(c)) || '';
+        const autoTime = cols.find(c => /^(date|timestamp|time|ds|day)$/i.test(c)) || cols.find(c => /date|time|timestamp/i.test(c)) || cols[0] || '';
+        const nonTimeCols = cols.filter(c => c !== autoTime);
+
+        const autoTarget = nonTimeCols.find(c => /sales|weekly_sales|units|demand|volume|qty|target/i.test(c)) || nonTimeCols[0] || '';
+        const nonTargetCols = nonTimeCols.filter(c => c !== autoTarget);
+
+        const autoSecondary = nonTargetCols.find(c => /store|branch|shop|location|warehouse|state/i.test(c)) || '';
+        const remainingCols = nonTargetCols.filter(c => c !== autoSecondary);
+
+        const autoSeries = remainingCols.find(c => /dept|department|item|product|sku|part|material|id$/i.test(c)) || '';
 
         setTimeCol(autoTime);
         setTargetCol(autoTarget);
         setSeriesCol(autoSeries);
+        setSecondarySeriesCol(autoSecondary);
       }
     } catch {
       // Error handled in context
@@ -158,6 +170,7 @@ export default function GenerateForecastPage({ onNavigate }) {
         time_column: timeCol,
         target_column: targetCol,
         series_id_column: seriesCol ? seriesCol : null,
+        secondary_series_id_column: secondarySeriesCol ? secondarySeriesCol : null,
         dynamic_covariates: [],
         static_covariates: []
       });
@@ -168,14 +181,16 @@ export default function GenerateForecastPage({ onNavigate }) {
     }
   };
 
-  const handlePreloadM5 = async () => {
-    try {
-      await preloadM5Dataset('total', 500);
-      setSelectedFiles([]);
-      setUploadPreview(null);
-    } catch {
-      // Error handled in context
-    }
+  const handleUploadAnother = () => {
+    resetWorkflow();
+    setSelectedFiles([]);
+    setDatasetName('');
+    setUploadWarning('');
+    setUploadPreview(null);
+    setTimeCol('');
+    setTargetCol('');
+    setSeriesCol('');
+    setSecondarySeriesCol('');
   };
 
   // --- Handlers for Backtesting Benchmark ---
@@ -272,18 +287,19 @@ export default function GenerateForecastPage({ onNavigate }) {
               Upload Dataset or Multi-CSV Folder
             </h2>
             <p className="text-xs text-[#5F5670]">
-              Upload a single CSV file, an entire folder of CSVs, or preload the reference M5 benchmark.
+              Upload a single CSV file or an entire folder of CSVs to forecast demand.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={handlePreloadM5}
+            onClick={handleUploadAnother}
             disabled={isLoading}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#F5EFFF] text-[#A294F9] border border-[#CDC1FF] text-xs font-bold hover:bg-[#E5D9F2] shadow-xs transition-colors cursor-pointer shrink-0"
+            title="Reset and upload another dataset"
           >
-            <Sparkles className="w-4 h-4" />
-            <span>1-Click Load M5 Benchmark</span>
+            <RefreshCw className="w-4 h-4" />
+            <span>Upload Another Dataset</span>
           </button>
         </div>
 
@@ -404,7 +420,7 @@ export default function GenerateForecastPage({ onNavigate }) {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-bold text-[#1F1B2C] mb-1">
                   1. Timestamp Column *
@@ -423,14 +439,14 @@ export default function GenerateForecastPage({ onNavigate }) {
 
               <div>
                 <label className="block text-xs font-bold text-[#1F1B2C] mb-1">
-                  2. Target Demand Column *
+                  2. Target Demand *
                 </label>
                 <select
                   value={targetCol}
                   onChange={(e) => setTargetCol(e.target.value)}
                   className="w-full bg-white border border-[#CDC1FF] rounded-xl px-3 py-2 text-xs font-semibold text-[#1F1B2C] outline-none"
                 >
-                  <option value="">Select target column...</option>
+                  <option value="">Select target metric...</option>
                   {uploadPreview.available_columns.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -439,14 +455,30 @@ export default function GenerateForecastPage({ onNavigate }) {
 
               <div>
                 <label className="block text-xs font-bold text-[#1F1B2C] mb-1">
-                  3. Series ID Column (Optional)
+                  3. Store / Location (Optional)
+                </label>
+                <select
+                  value={secondarySeriesCol}
+                  onChange={(e) => setSecondarySeriesCol(e.target.value)}
+                  className="w-full bg-white border border-[#CDC1FF] rounded-xl px-3 py-2 text-xs font-semibold text-[#1F1B2C] outline-none"
+                >
+                  <option value="">None (All Stores / Global)</option>
+                  {uploadPreview.available_columns.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1F1B2C] mb-1">
+                  4. Product / Item (Optional)
                 </label>
                 <select
                   value={seriesCol}
                   onChange={(e) => setSeriesCol(e.target.value)}
                   className="w-full bg-white border border-[#CDC1FF] rounded-xl px-3 py-2 text-xs font-semibold text-[#1F1B2C] outline-none"
                 >
-                  <option value="">None (Single Series / Total)</option>
+                  <option value="">None (Single Product / Total)</option>
                   {uploadPreview.available_columns.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -564,10 +596,10 @@ export default function GenerateForecastPage({ onNavigate }) {
             </div>
             <div>
               <div className="text-sm font-bold text-[#1F1B2C]">
-                {loadingMessage || 'Training & Evaluating 5 Candidate Models...'}
+                {loadingMessage || 'Training models... please wait'}
               </div>
               <div className="text-xs text-[#5F5670]">
-                Running ARIMA, Prophet, LightGBM, DeepAR, and TFT chronologically on the hidden 20-day test set. Calculating MAPE & RMSE...
+                Running candidate AI models to find which one predicts your data with the lowest error.
               </div>
             </div>
           </div>
@@ -637,14 +669,14 @@ export default function GenerateForecastPage({ onNavigate }) {
                         </td>
                         <td className="py-3.5 px-4 font-bold text-[#1F1B2C]">
                           <span className={isWinner ? 'text-emerald-700 font-extrabold text-sm' : ''}>
-                            {row.mape.toFixed(2)}%
+                            {row.mape != null ? `${Number(row.mape).toFixed(2)}%` : 'N/A'}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-[#1F1B2C]">
-                          {row.rmse.toFixed(2)}
+                          {row.rmse != null ? Number(row.rmse).toFixed(2) : 'N/A'}
                         </td>
                         <td className="py-3.5 px-4 text-[#8E83A3] font-mono">
-                          {row.train_time_seconds.toFixed(2)}s
+                          {row.train_time_seconds != null ? `${Number(row.train_time_seconds).toFixed(2)}s` : '-'}
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <button
@@ -665,79 +697,6 @@ export default function GenerateForecastPage({ onNavigate }) {
                 </tbody>
               </table>
             </div>
-
-            {/* Holdout Comparison Chart */}
-            {testActuals.length > 0 && (
-              <div className="pt-4 space-y-3">
-                <div className="text-xs font-semibold text-[#1F1B2C]">
-                  Holdout Prediction Comparison: Actual Sales vs Candidate Models
-                </div>
-                <div className="relative w-full h-64 bg-[#F5EFFF]/30 rounded-2xl border border-[#E5D9F2] p-4 flex flex-col justify-end">
-                  <svg viewBox="0 0 800 200" className="w-full h-full overflow-visible">
-                    {/* Grid */}
-                    {[0, 0.25, 0.5, 0.75, 1].map((r, i) => (
-                      <line key={i} x1="0" y1={200 - r * 170} x2="800" y2={200 - r * 170} stroke="#E5D9F2" strokeDasharray="3 3" />
-                    ))}
-
-                    {/* Actual holdout line */}
-                    <path
-                      d={testActuals.map((v, i) => {
-                        const x = (i / Math.max(1, testActuals.length - 1)) * 800;
-                        const y = 200 - (v / (chartMax || 1)) * 170;
-                        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-                      }).join(' ')}
-                      fill="none"
-                      stroke="#1F1B2C"
-                      strokeWidth="3"
-                      strokeLinejoin="round"
-                    />
-
-                    {/* Model prediction lines */}
-                    {Object.entries(modelPredictions).map(([mKey, preds]) => {
-                      const isSelected = selectedModel?.toLowerCase() === mKey.toLowerCase();
-                      const color = modelColors[mKey] || modelColors[mKey.toLowerCase()] || '#A294F9';
-                      return (
-                        <path
-                          key={mKey}
-                          d={preds.map((v, i) => {
-                            const x = (i / Math.max(1, preds.length - 1)) * 800;
-                            const y = 200 - (v / (chartMax || 1)) * 170;
-                            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-                          }).join(' ')}
-                          fill="none"
-                          stroke={color}
-                          strokeWidth={isSelected ? '2.5' : '1.5'}
-                          strokeDasharray={mKey.toLowerCase() === 'arima' ? '4 2' : 'none'}
-                          strokeLinejoin="round"
-                          opacity={isSelected ? 1.0 : 0.6}
-                        />
-                      );
-                    })}
-                  </svg>
-
-                  <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-[#5F5670] mt-2 pt-2 border-t border-[#E5D9F2]">
-                    <div className="flex flex-wrap items-center gap-4">
-                      <span className="flex items-center gap-1.5 font-bold text-[#1F1B2C]">
-                        <span className="w-3.5 h-1 bg-[#1F1B2C] inline-block rounded-full"></span>
-                        Actual Holdout Sales
-                      </span>
-                      {Object.keys(modelPredictions).map(mKey => (
-                        <span key={mKey} className="flex items-center gap-1.5 font-medium">
-                          <span 
-                            className="w-3.5 h-1 inline-block rounded-full" 
-                            style={{ backgroundColor: modelColors[mKey] || modelColors[mKey.toLowerCase()] || '#A294F9' }} 
-                          />
-                          <span className="capitalize">{mKey}</span>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="text-[11px] text-[#8E83A3]">
-                      {testTimestamps[0]} → {testTimestamps[testTimestamps.length - 1]} ({testTimestamps.length} Days)
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </section>
@@ -843,27 +802,27 @@ export default function GenerateForecastPage({ onNavigate }) {
               <div className="p-4 rounded-2xl bg-[#F5EFFF]/70 border border-[#E5D9F2] space-y-1">
                 <div className="text-[10px] font-bold uppercase text-[#8E83A3]">Daily Average Demand</div>
                 <div className="text-2xl font-bold font-heading text-[#1F1B2C]">
-                  {forecastResult.insights.average_daily_demand.toFixed(1)} <span className="text-xs font-normal text-[#5F5670]">units/day</span>
+                  {forecastResult.insights?.average_daily_demand != null ? Number(forecastResult.insights.average_daily_demand).toFixed(1) : '-'} <span className="text-xs font-normal text-[#5F5670]">units/day</span>
                 </div>
                 <div className="text-[11px] text-emerald-600 capitalize font-medium">
-                  {forecastResult.insights.demand_trend} trend
+                  {forecastResult.insights?.demand_trend || 'stable'} trend
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#F5EFFF]/70 border border-[#E5D9F2] space-y-1">
                 <div className="text-[10px] font-bold uppercase text-[#8E83A3]">Peak Demand Date</div>
                 <div className="text-xl font-bold font-heading text-[#1F1B2C]">
-                  {forecastResult.insights.peak_demand_value.toFixed(1)} <span className="text-xs font-normal text-[#5F5670]">units</span>
+                  {forecastResult.insights?.peak_demand_value != null ? Number(forecastResult.insights.peak_demand_value).toFixed(1) : '-'} <span className="text-xs font-normal text-[#5F5670]">units</span>
                 </div>
                 <div className="text-[11px] text-[#8E83A3]">
-                  Date: {forecastResult.insights.peak_demand_date}
+                  Date: {forecastResult.insights?.peak_demand_date || '-'}
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#F5EFFF]/70 border border-[#E5D9F2] space-y-1">
                 <div className="text-[10px] font-bold uppercase text-[#8E83A3]">Recommended Safety Stock</div>
                 <div className="text-2xl font-bold font-heading text-emerald-700">
-                  {Math.round(forecastResult.insights.recommended_safety_stock)} <span className="text-xs font-normal text-[#5F5670]">units</span>
+                  {forecastResult.insights?.recommended_safety_stock != null ? Math.round(Number(forecastResult.insights.recommended_safety_stock)) : 0} <span className="text-xs font-normal text-[#5F5670]">units</span>
                 </div>
                 <div className="text-[11px] text-[#5F5670]">
                   Uncertainty safety buffer
@@ -923,11 +882,11 @@ export default function GenerateForecastPage({ onNavigate }) {
                     {forecastResult.forecast.map((row, idx) => (
                       <tr key={idx} className="hover:bg-[#F5EFFF]/30">
                         <td className="py-2 px-4 font-medium text-[#1F1B2C]">{row.timestamp}</td>
-                        <td className="py-2 px-4 font-bold text-[#A294F9]">{row.prediction.toFixed(2)}</td>
-                        <td className="py-2 px-4 text-[#5F5670]">{row.lower_80.toFixed(2)}</td>
-                        <td className="py-2 px-4 text-[#5F5670]">{row.upper_80.toFixed(2)}</td>
-                        <td className="py-2 px-4 text-[#8E83A3]">{row.lower_95.toFixed(2)}</td>
-                        <td className="py-2 px-4 text-[#8E83A3]">{row.upper_95.toFixed(2)}</td>
+                        <td className="py-2 px-4 font-bold text-[#A294F9]">{row.prediction != null ? Number(row.prediction).toFixed(2) : '-'}</td>
+                        <td className="py-2 px-4 text-[#5F5670]">{row.lower_80 != null ? Number(row.lower_80).toFixed(2) : '-'}</td>
+                        <td className="py-2 px-4 text-[#5F5670]">{row.upper_80 != null ? Number(row.upper_80).toFixed(2) : '-'}</td>
+                        <td className="py-2 px-4 text-[#8E83A3]">{row.lower_95 != null ? Number(row.lower_95).toFixed(2) : '-'}</td>
+                        <td className="py-2 px-4 text-[#8E83A3]">{row.upper_95 != null ? Number(row.upper_95).toFixed(2) : '-'}</td>
                       </tr>
                     ))}
                   </tbody>

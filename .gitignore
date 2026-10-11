@@ -47,6 +47,7 @@ env.bak/
 venv.bak/
 
 # Local Storage Uploads & Temporary Cache (keep folder structure)
+backend/storage/*.db
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 backend/storage/processed/*

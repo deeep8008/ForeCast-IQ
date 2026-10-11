@@ -49,7 +49,8 @@ class GenericCSVAdapter(BaseDatasetAdapter):
             df_raw,
             time_col=mapping.time_column,
             target_col=mapping.target_column,
-            series_id_col=mapping.series_id_column
+            series_id_col=mapping.series_id_column,
+            secondary_series_id_col=mapping.secondary_series_id_column
         )
 
         # Parse time and target
@@ -58,13 +59,22 @@ class GenericCSVAdapter(BaseDatasetAdapter):
 
         # Build canonical columns
         canonical_df = pd.DataFrame()
-        if mapping.series_id_column:
-            canonical_df["series_id"] = df_raw[mapping.series_id_column].astype(str)
-        else:
-            canonical_df["series_id"] = "total"
-
         canonical_df["timestamp"] = parsed_time
         canonical_df["target"] = parsed_target
+
+        if mapping.secondary_series_id_column and mapping.series_id_column:
+            # e.g. "Store 1 - Item 1" or "Dallas / SKU123"
+            canonical_df["series_id"] = (
+                df_raw[mapping.secondary_series_id_column].astype(str)
+                + " / "
+                + df_raw[mapping.series_id_column].astype(str)
+            )
+        elif mapping.series_id_column:
+            canonical_df["series_id"] = df_raw[mapping.series_id_column].astype(str)
+        elif mapping.secondary_series_id_column:
+            canonical_df["series_id"] = df_raw[mapping.secondary_series_id_column].astype(str)
+        else:
+            canonical_df["series_id"] = "total"
 
         # Add covariates if requested
         for cov in mapping.dynamic_covariates:

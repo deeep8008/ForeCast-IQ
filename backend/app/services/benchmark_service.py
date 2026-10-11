@@ -37,17 +37,25 @@ class BenchmarkService:
 
         # 3. Iterate through candidate models uniformly through BaseForecaster interface
         for model_key in request.candidate_models:
-            model = ModelFactory.get_model(model_key)
-            
-            # Evaluate model strictly on train_df / test_df
-            result = EvaluationEngine.evaluate_model(
-                model=model,
-                model_key=model_key,
-                train_df=train_df,
-                test_df=test_df
-            )
-            evaluation_results.append(result)
-            model_predictions[result.model_name] = result.predictions
+            try:
+                model = ModelFactory.get_model(model_key)
+                
+                # Evaluate model strictly on train_df / test_df
+                result = EvaluationEngine.evaluate_model(
+                    model=model,
+                    model_key=model_key,
+                    train_df=train_df,
+                    test_df=test_df
+                )
+                evaluation_results.append(result)
+                model_predictions[result.model_name] = result.predictions
+            except Exception as model_err:
+                import traceback
+                print(f"[Benchmark Warning] Model {model_key} failed evaluation: {model_err}")
+                traceback.print_exc()
+
+        if not evaluation_results:
+            raise PreprocessingError("All candidate models failed during evaluation benchmark.")
 
         # 4. Generate dynamic leaderboard (Ranked by MAPE ascending, RMSE tie-breaker)
         raw_leaderboard = LeaderboardGenerator.generate_leaderboard(evaluation_results)

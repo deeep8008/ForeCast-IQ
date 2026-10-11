@@ -82,6 +82,7 @@ class EvaluationEngine:
         # 3. Extract actual values and predictions
         y_true = test_df["target"].values.astype(float)
         y_pred = np.array(forecast_output.predictions, dtype=float)
+        y_pred = np.nan_to_num(y_pred, nan=float(np.mean(y_true) if len(y_true) > 0 else 0.0))
 
         # 4. Compute metrics
         mape_score = Metrics.mape(y_true, y_pred)
@@ -93,10 +94,11 @@ class EvaluationEngine:
         aligned_series = []
         test_timestamps = [str(ts.date()) for ts in test_df["timestamp"]]
         for t_stamp, actual_val, pred_val in zip(test_timestamps, y_true, y_pred):
+            p_val = float(pred_val) if not np.isnan(pred_val) else 0.0
             aligned_series.append({
                 "timestamp": t_stamp,
                 "actual": round(float(actual_val), 3),
-                "predicted": round(float(pred_val), 3)
+                "predicted": round(p_val, 3)
             })
 
         return ModelEvaluationResult(

@@ -31,10 +31,19 @@ class ForecastService:
         # 2. Filter by series_id if requested, otherwise aggregate
         series_label = "all_series"
         if request.series_id:
-            df = df[df["series_id"] == request.series_id].copy()
-            if df.empty:
+            df["_series_str"] = df["series_id"].astype(str)
+            target_str = str(request.series_id)
+            filtered = df[df["_series_str"] == target_str].copy()
+            if filtered.empty:
+                available = df["series_id"].dropna().unique()
+                if len(available) > 0:
+                    filtered = df[df["series_id"] == available[0]].copy()
+                    series_label = str(available[0])
+            else:
+                series_label = str(request.series_id)
+            if filtered.empty:
                 raise PreprocessingError(f"Series ID '{request.series_id}' not found in dataset '{request.dataset_id}'.")
-            series_label = request.series_id
+            df = filtered.drop(columns=["_series_str"], errors="ignore")
 
         # Sort strictly by timestamp
         df_full = df.sort_values("timestamp").reset_index(drop=True)

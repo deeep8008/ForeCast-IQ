@@ -16,6 +16,7 @@ class ColumnMappingRequest(BaseModel):
     time_column: str
     target_column: str
     series_id_column: Optional[str] = None
+    secondary_series_id_column: Optional[str] = None
     dynamic_covariates: List[str] = Field(default_factory=list)
     static_covariates: List[str] = Field(default_factory=list)
     selected_file: Optional[str] = None

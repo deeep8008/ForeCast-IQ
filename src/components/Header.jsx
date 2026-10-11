@@ -22,20 +22,20 @@ export default function Header({ activeTab, onMobileToggle }) {
   const getPageInfo = (tab) => {
     if (tab === 'home') {
       return {
-        title: 'Welcome to ForecastIQ',
-        breadcrumb: 'ForecastIQ / Enterprise Demand Intelligence'
+        title: 'Dashboard Overview',
+        breadcrumb: 'ForecastIQ'
       };
     }
     return {
-      title: 'Generate Forecast & Model Leaderboard',
-      breadcrumb: 'ForecastIQ / Backtest 5 Models & Project Horizon'
+      title: 'Forecast Studio',
+      breadcrumb: 'ForecastIQ / Forecast'
     };
   };
 
   const { title, breadcrumb } = getPageInfo(activeTab);
 
   const getInitials = (name) => {
-    if (!name) return 'EP';
+    if (!name) return 'U';
     return name
       .split(' ')
       .map((part) => part[0])
@@ -69,13 +69,20 @@ export default function Header({ activeTab, onMobileToggle }) {
 
         {/* Right: Controls & Profile */}
         <div className="flex items-center gap-3">
-          {/* Active Dataset Badge */}
-          <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-[#E5D9F2] shadow-xs text-xs text-[#5F5670]">
-            <Database className="w-3.5 h-3.5 text-[#A294F9]" />
-            <span className="font-semibold text-[#1F1B2C] max-w-[140px] truncate">
-              {datasetSummary?.dataset_name || activeDatasetId}
-            </span>
-          </div>
+          {/* Active Dataset Badge (Only shown if a real dataset is loaded) */}
+          {datasetSummary ? (
+            <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-[#E5D9F2] shadow-xs text-xs text-[#5F5670]">
+              <Database className="w-3.5 h-3.5 text-[#A294F9]" />
+              <span className="font-semibold text-[#1F1B2C] max-w-[160px] truncate">
+                {datasetSummary.dataset_name || 'Active Dataset'}
+              </span>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-1.5 bg-white/70 px-3 py-1.5 rounded-xl border border-[#E5D9F2] text-xs text-[#8E83A3]">
+              <span className="w-2 h-2 rounded-full bg-slate-300"></span>
+              <span>No dataset loaded</span>
+            </div>
+          )}
 
           {/* Backend Status indicator */}
           <div 
@@ -84,7 +91,7 @@ export default function Header({ activeTab, onMobileToggle }) {
             }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-            <span>{backendOnline ? 'ML Backend Online' : 'Backend Connecting'}</span>
+            <span>{backendOnline ? 'Online' : 'Connecting...'}</span>
           </div>
 
           {/* User Profile / Auth Area */}
@@ -102,7 +109,7 @@ export default function Header({ activeTab, onMobileToggle }) {
                     {user.name}
                   </div>
                   <div className="text-[10px] text-[#8E83A3] mt-0.5">
-                    {user.role || 'Enterprise Planner'}
+                    {user.role || 'Member'}
                   </div>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-[#8E83A3] hidden sm:block" />

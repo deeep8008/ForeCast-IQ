@@ -41,6 +41,7 @@ export default function UploadModal() {
   const [timeCol, setTimeCol] = useState('');
   const [targetCol, setTargetCol] = useState('');
   const [seriesCol, setSeriesCol] = useState('');
+  const [secondarySeriesCol, setSecondarySeriesCol] = useState('');
   const [selectedFileForMapping, setSelectedFileForMapping] = useState('');
 
   // M5 Preload options
@@ -101,15 +102,23 @@ export default function UploadModal() {
     try {
       const preview = await uploadFiles(selectedFiles, datasetName);
       if (preview && preview.available_columns) {
-        // Auto-guess columns if matching common names
+        // Auto-guess columns cleanly without collisions
         const cols = preview.available_columns;
-        const autoTime = cols.find(c => /date|time|timestamp|day|d$/i.test(c)) || cols[0] || '';
-        const autoTarget = cols.find(c => /sales|target|units|demand|volume|qty/i.test(c)) || (cols.length > 1 ? cols[1] : '');
-        const autoSeries = cols.find(c => /series|item_id|store_id|product|id$/i.test(c)) || '';
+        const autoTime = cols.find(c => /^(date|timestamp|time|ds|day)$/i.test(c)) || cols.find(c => /date|time|timestamp/i.test(c)) || cols[0] || '';
+        const nonTimeCols = cols.filter(c => c !== autoTime);
+
+        const autoTarget = nonTimeCols.find(c => /sales|weekly_sales|units|demand|volume|qty|target/i.test(c)) || nonTimeCols[0] || '';
+        const nonTargetCols = nonTimeCols.filter(c => c !== autoTarget);
+
+        const autoSecondary = nonTargetCols.find(c => /store|branch|shop|location|warehouse|state/i.test(c)) || '';
+        const remainingCols = nonTargetCols.filter(c => c !== autoSecondary);
+
+        const autoSeries = remainingCols.find(c => /dept|department|item|product|sku|part|material|id$/i.test(c)) || '';
 
         setTimeCol(autoTime);
         setTargetCol(autoTarget);
         setSeriesCol(autoSeries);
+        setSecondarySeriesCol(autoSecondary);
         if (preview.csv_files && preview.csv_files.length > 0) {
           setSelectedFileForMapping(preview.csv_files[0]);
         }
@@ -130,6 +139,7 @@ export default function UploadModal() {
         time_column: timeCol,
         target_column: targetCol,
         series_id_column: seriesCol ? seriesCol : null,
+        secondary_series_id_column: secondarySeriesCol ? secondarySeriesCol : null,
         selected_file: selectedFileForMapping || null,
         dynamic_covariates: [],
         static_covariates: []
@@ -374,7 +384,7 @@ export default function UploadModal() {
               </div>
 
               {/* Column Mapping Selectors */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Time column */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-[#1F1B2C]">
@@ -398,40 +408,60 @@ export default function UploadModal() {
                 {/* Target Demand column */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-[#1F1B2C]">
-                    2. Target Demand Column <span className="text-rose-500">*</span>
+                    2. Target Demand <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={targetCol}
                     onChange={(e) => setTargetCol(e.target.value)}
                     className="w-full bg-[#F5EFFF] border border-[#CDC1FF] rounded-xl px-3 py-2 text-xs font-semibold text-[#1F1B2C] outline-none"
                   >
-                    <option value="">Select target col...</option>
+                    <option value="">Select target metric...</option>
                     {uploadPreview.available_columns.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                   <p className="text-[10px] text-[#8E83A3]">
-                    e.g. sales, units, demand, target
+                    e.g. sales, units, revenue, demand
                   </p>
                 </div>
 
-                {/* Series ID column */}
+                {/* Location / Group Column */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-[#1F1B2C]">
-                    3. Series ID Column (Optional)
+                    3. Store / Location (Optional)
+                  </label>
+                  <select
+                    value={secondarySeriesCol}
+                    onChange={(e) => setSecondarySeriesCol(e.target.value)}
+                    className="w-full bg-[#F5EFFF] border border-[#CDC1FF] rounded-xl px-3 py-2 text-xs font-semibold text-[#1F1B2C] outline-none"
+                  >
+                    <option value="">None (All Stores / Global)</option>
+                    {uploadPreview.available_columns.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-[#8E83A3]">
+                    e.g. store, branch, warehouse, city
+                  </p>
+                </div>
+
+                {/* Series / Item ID column */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1F1B2C]">
+                    4. Product / Item (Optional)
                   </label>
                   <select
                     value={seriesCol}
                     onChange={(e) => setSeriesCol(e.target.value)}
                     className="w-full bg-[#F5EFFF] border border-[#CDC1FF] rounded-xl px-3 py-2 text-xs font-semibold text-[#1F1B2C] outline-none"
                   >
-                    <option value="">None (Single Series / Total)</option>
+                    <option value="">None (Single Product / Total)</option>
                     {uploadPreview.available_columns.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                   <p className="text-[10px] text-[#8E83A3]">
-                    e.g. item_id, store_id, product_id
+                    e.g. item, sku, product_id, model
                   </p>
                 </div>
               </div>

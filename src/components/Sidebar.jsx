@@ -113,35 +113,39 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
         {/* Bottom Section */}
         <div>
           {/* Active Dataset Status Card */}
-          <div className="p-4 m-3 rounded-2xl bg-[#F5EFFF] border border-[#E5D9F2] text-[#1F1B2C]">
+          <div className="p-3.5 m-3 rounded-2xl bg-[#F5EFFF]/70 border border-[#E5D9F2] text-[#1F1B2C]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8E83A3]">
-                Dataset Status
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E83A3]">
+                Active Dataset
               </span>
-              <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border shadow-xs ${
-                backendOnline ? 'text-emerald-600 bg-white border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-200'
+              <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                backendOnline ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-                {backendOnline ? 'Engine Online' : 'Backend Offline'}
+                <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                {backendOnline ? 'Ready' : 'Offline'}
               </span>
             </div>
 
-            <div className="space-y-1">
-              <div className="font-semibold text-xs text-[#1F1B2C] truncate" title={activeDatasetId}>
-                {datasetSummary?.dataset_name || activeDatasetId || 'Generic Dataset'}
+            {datasetSummary ? (
+              <div className="space-y-1">
+                <div className="font-bold text-xs text-[#1F1B2C] truncate">
+                  {datasetSummary.dataset_name || 'Uploaded Data'}
+                </div>
+                <div className="text-[11px] text-[#5F5670]">
+                  {obsCount.toLocaleString()} rows • {datasetSummary.series_count ?? 1} series
+                </div>
               </div>
-              <div className="text-[11px] text-[#5F5670] leading-relaxed">
-                • {obsCount} observations<br />
-                • {datasetSummary?.series_count ?? 1} series<br />
-                • Freq: {datasetSummary?.frequency || 'Daily'}
+            ) : (
+              <div className="text-[11px] text-[#8E83A3] italic py-1">
+                No dataset loaded yet
               </div>
-            </div>
+            )}
 
             <button
               onClick={() => setActiveTab('forecast')}
-              className="w-full mt-3 pt-2 pb-1 border-t border-[#E5D9F2]/80 flex items-center justify-between text-[11px] text-[#A294F9] font-bold hover:text-[#8c7cf0] cursor-pointer"
+              className="w-full mt-2.5 pt-2 border-t border-[#E5D9F2]/60 flex items-center justify-between text-[11px] text-[#A294F9] font-bold hover:text-[#8c7cf0] cursor-pointer"
             >
-              <span>Upload / Change Data</span>
+              <span>{datasetSummary ? 'Change Dataset' : 'Upload CSV'}</span>
               <span>→</span>
             </button>
           </div>

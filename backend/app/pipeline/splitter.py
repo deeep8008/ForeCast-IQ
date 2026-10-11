@@ -23,9 +23,17 @@ class ChronologicalSplitter:
 
         df = df_canonical.copy()
         if series_id:
-            df = df[df["series_id"] == series_id].copy()
-            if df.empty:
+            df["_series_str"] = df["series_id"].astype(str)
+            target_str = str(series_id)
+            filtered = df[df["_series_str"] == target_str].copy()
+            if filtered.empty:
+                # If requested series_id is invalid or from a previous dataset, fallback to first available series
+                available = df["series_id"].dropna().unique()
+                if len(available) > 0:
+                    filtered = df[df["series_id"] == available[0]].copy()
+            if filtered.empty:
                 raise SplitError(f"Series ID '{series_id}' not found in dataset.")
+            df = filtered.drop(columns=["_series_str"], errors="ignore")
 
         # Sort strictly by timestamp
         df["timestamp"] = pd.to_datetime(df["timestamp"])

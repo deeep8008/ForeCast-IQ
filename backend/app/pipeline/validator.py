@@ -32,7 +32,13 @@ class DatasetValidator:
         return unique_csvs
 
     @staticmethod
-    def validate_columns_exist(df: pd.DataFrame, time_col: str, target_col: str, series_id_col: str = None) -> None:
+    def validate_columns_exist(
+        df: pd.DataFrame, 
+        time_col: str, 
+        target_col: str, 
+        series_id_col: str = None,
+        secondary_series_id_col: str = None
+    ) -> None:
         """Verifies that user-mapped columns actually exist in the dataframe."""
         missing = []
         if time_col not in df.columns:
@@ -41,6 +47,8 @@ class DatasetValidator:
             missing.append(f"Target column '{target_col}'")
         if series_id_col and series_id_col not in df.columns:
             missing.append(f"Series ID column '{series_id_col}'")
+        if secondary_series_id_col and secondary_series_id_col not in df.columns:
+            missing.append(f"Location / Group column '{secondary_series_id_col}'")
 
         if missing:
             raise InvalidSchemaError(f"Missing mapped columns in dataset: {', '.join(missing)}")

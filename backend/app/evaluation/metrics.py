@@ -19,8 +19,13 @@ class Metrics:
         if len(y_t) == 0:
             return 0.0
 
-        mse = np.mean((y_t - y_p) ** 2)
-        return round(float(np.sqrt(mse)), 4)
+        diff = y_t - y_p
+        diff = np.nan_to_num(diff, nan=9999.0, posinf=9999.0, neginf=-9999.0)
+        mse = np.mean(diff ** 2)
+        val = float(np.sqrt(mse))
+        if np.isnan(val) or np.isinf(val):
+            return 9999.0
+        return round(val, 4)
 
     @staticmethod
     def mae(y_true: Union[np.ndarray, List[float]], y_pred: Union[np.ndarray, List[float]]) -> float:
@@ -33,7 +38,12 @@ class Metrics:
         if len(y_t) == 0:
             return 0.0
 
-        return round(float(np.mean(np.abs(y_t - y_p))), 4)
+        diff = np.abs(y_t - y_p)
+        diff = np.nan_to_num(diff, nan=9999.0, posinf=9999.0, neginf=9999.0)
+        val = float(np.mean(diff))
+        if np.isnan(val) or np.isinf(val):
+            return 9999.0
+        return round(val, 4)
 
     @staticmethod
     def mape(
@@ -41,40 +51,30 @@ class Metrics:
         y_pred: Union[np.ndarray, List[float]],
         epsilon: float = 1e-8
     ) -> float:
-        """
-        Mean Absolute Percentage Error (MAPE).
-        
-        SAFE ZERO-TARGET STRATEGY:
-        When actual target values contain 0 (e.g. 0 sales on a quiet day):
-        1. Divisor |y_true| = 0 causes division-by-zero (Inf/NaN).
-        2. Strategy: Standard masked evaluation over all non-zero actuals (y_true != 0).
-        3. If all actuals in the test set are zero:
-           - If predictions are also 0 -> MAPE = 0.0%
-           - If predictions > 0 -> Uses small denominator epsilon to report relative percentage deviation.
-        4. Returns error as a percentage value (e.g. 12.45 for 12.45%).
-        """
         y_t = np.asarray(y_true, dtype=float)
         y_p = np.asarray(y_pred, dtype=float)
 
         if len(y_t) == 0:
             return 0.0
 
+        # Replace any NaNs in predictions with fallback
+        y_p = np.nan_to_num(y_p, nan=0.0, posinf=9999.0, neginf=0.0)
+
         # Mask non-zero actual observations
         non_zero_mask = y_t != 0
 
         if np.any(non_zero_mask):
-            # Compute standard MAPE across non-zero points
             pct_errors = np.abs((y_t[non_zero_mask] - y_p[non_zero_mask]) / y_t[non_zero_mask])
             mape_value = float(np.mean(pct_errors) * 100.0)
         else:
-            # All actuals are exactly 0
             if np.all(y_p == 0):
                 mape_value = 0.0
             else:
                 pct_errors = np.abs((y_t - y_p) / np.maximum(np.abs(y_t), epsilon))
                 mape_value = float(np.mean(pct_errors) * 100.0)
 
-        # Cap extreme outlier percentage for robustness
+        if np.isnan(mape_value) or np.isinf(mape_value):
+            return 9999.0
         return round(min(9999.0, mape_value), 4)
 
     @staticmethod
@@ -84,9 +84,13 @@ class Metrics:
         """
         y_t = np.asarray(y_true, dtype=float)
         y_p = np.asarray(y_pred, dtype=float)
+        y_p = np.nan_to_num(y_p, nan=0.0)
 
         sum_actual = np.sum(np.abs(y_t))
         if sum_actual == 0:
             return 0.0 if np.sum(np.abs(y_p)) == 0 else 100.0
 
-        return round(float((np.sum(np.abs(y_t - y_p)) / sum_actual) * 100.0), 4)
+        val = float((np.sum(np.abs(y_t - y_p)) / sum_actual) * 100.0)
+        if np.isnan(val) or np.isinf(val):
+            return 9999.0
+        return round(val, 4)

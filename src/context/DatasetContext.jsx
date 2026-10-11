@@ -4,7 +4,7 @@ import { api } from '../services/api';
 const DatasetContext = createContext(null);
 
 export function DatasetProvider({ children }) {
-  const [activeDatasetId, setActiveDatasetId] = useState('m5_reference');
+  const [activeDatasetId, setActiveDatasetId] = useState(null);
   const [availableDatasets, setAvailableDatasets] = useState([]);
   const [datasetSummary, setDatasetSummary] = useState(null);
   const [splitMetadata, setSplitMetadata] = useState(null);
@@ -27,7 +27,7 @@ export function DatasetProvider({ children }) {
   const [error, setError] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
 
-  const activeDatasetIdRef = useRef('m5_reference');
+  const activeDatasetIdRef = useRef(null);
   activeDatasetIdRef.current = activeDatasetId;
 
   const selectedSeriesIdRef = useRef(selectedSeriesId);
@@ -67,7 +67,14 @@ export function DatasetProvider({ children }) {
       if (summary && summary.total_observations !== undefined) {
         setDatasetSummary(summary);
         if (summary.series_ids?.length > 0) {
-          setSelectedSeriesId(prev => prev || summary.series_ids[0]);
+          setSelectedSeriesId(prev => {
+            if (prev && summary.series_ids.includes(prev)) {
+              return prev;
+            }
+            return summary.series_ids[0];
+          });
+        } else {
+          setSelectedSeriesId(null);
         }
         setError(null);
         return summary;
@@ -117,6 +124,25 @@ export function DatasetProvider({ children }) {
       cancelled = true;
     };
   }, [fetchSummary]);
+
+  // Reset workflow back to initial state (removes benchmark, forecast, active dataset)
+  const resetWorkflow = useCallback(() => {
+    setActiveDatasetId(null);
+    setDatasetSummary(null);
+    setSplitMetadata(null);
+    setBenchmarkResults(null);
+    setForecastResult(null);
+    setSelectedSeriesId(null);
+    setUploadPreview(null);
+    setError(null);
+    activeDatasetIdRef.current = null;
+    selectedSeriesIdRef.current = null;
+    try {
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn('Session storage clear warning:', e);
+    }
+  }, []);
 
   // 1-Click Preload M5 Benchmark
   const preloadM5Dataset = useCallback(async (aggregationLevel = 'total', maxDays = 500) => {
@@ -191,7 +217,7 @@ export function DatasetProvider({ children }) {
   const runSplit = useCallback(async (trainPercentage = 0.80, fixedTestDays = null, seriesId = null) => {
     try {
       setIsLoading(true);
-      setLoadingMessage('Performing chronological train/test split with 0% data leakage...');
+      setLoadingMessage('Preparing training & test data...');
       setError(null);
 
       const res = await api.splitDataset({
@@ -216,7 +242,7 @@ export function DatasetProvider({ children }) {
   const runBenchmark = useCallback(async (models = ['arima', 'prophet', 'lightgbm', 'deepar', 'tft'], trainPct = 0.80, fixedTestDays = null) => {
     try {
       setIsLoading(true);
-      setLoadingMessage('Backtesting 5 candidate models on holdout window (Phase 3)...');
+      setLoadingMessage('Training and testing 5 AI models... please wait');
       setError(null);
 
       const targetDatasetId = activeDatasetIdRef.current || 'm5_reference';
@@ -253,7 +279,7 @@ export function DatasetProvider({ children }) {
   const runFutureForecast = useCallback(async (modelKey = null, horizon = null, seriesId = null, inventory = null) => {
     try {
       setIsLoading(true);
-      setLoadingMessage('Retraining selected model on 100% historical data & forecasting...');
+      setLoadingMessage('Calculating future demand numbers... please wait');
       setError(null);
 
       const targetDatasetId = activeDatasetIdRef.current || 'm5_reference';
@@ -347,6 +373,7 @@ export function DatasetProvider({ children }) {
         preloadM5Dataset,
         uploadFiles,
         mapAndProcessSchema,
+        resetWorkflow,
         runSplit,
         runBenchmark,
         runFutureForecast,
