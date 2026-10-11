@@ -1,123 +1,144 @@
 # ForecastIQ — Multi-Horizon Demand Forecasting & Model Evaluation Engine
 
-ForecastIQ is a full-stack, enterprise-grade demand forecasting platform that automates dataset ingestion, chronological 80/20 holdout backtesting across 5 candidate machine learning models, dynamic leaderboard ranking (MAPE & RMSE), and 100% historical retraining for future multi-horizon projections.
+ForecastIQ is a full-stack demand forecasting platform that automates dataset ingestion, chronological 80/20 holdout backtesting across five candidate machine learning models, dynamic leaderboard ranking using MAPE and RMSE, and full-history retraining for multi-horizon demand projections.
 
 ---
 
 ## ⚡ Quick Start: Running Locally
 
-Follow these steps to run both the **FastAPI Backend** and the **React Frontend** on your machine.
+Follow these steps to run the **FastAPI backend** and **React frontend** locally.
 
 ### Prerequisites
-- **Python 3.10+** (with `pip`)
-- **Node.js 18+** (with `npm`)
+
+- **Python 3.10+** with pip
+- **Node.js 18+** with npm
 - **Git**
 
 ---
 
 ### 1. Clone the Repository
+
+Open a terminal and run:
+
 ```bash
-git clone https://github.com/deeep8008/BhavyaIsDummy.git
-cd BhavyaIsDummy
+git clone https://github.com/deeep8008/ForeCast-IQ.git
+cd ForeCast-IQ
 ```
 
----
+If you have already downloaded the project as a ZIP file, extract it and open the extracted `ForeCast-IQ` folder in your IDE instead.
 
-### 2. Start the Backend (Terminal 1)
+### 2. Start the Backend
 
-The backend powers the data processing, chronological holdout splitter, and 5 ML model algorithms.
+Open a terminal in the project root directory.
 
 ```bash
-# Navigate to backend directory
 cd backend
+```
 
-# Install dependencies
-pip install -r requirements.txt
+Install the Python dependencies:
 
-# Start FastAPI server on port 8000
+```bash
+python -m pip install -r requirements.txt
+```
+
+Start the FastAPI development server:
+
+```bash
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-> ✅ **Backend will be live at:** `http://127.0.0.1:8000`  
-> 📖 **Interactive Swagger API Docs:** `http://127.0.0.1:8000/docs`
+The backend will be available at:
 
----
+- **API:** http://127.0.0.1:8000
+- **Interactive API documentation:** http://127.0.0.1:8000/docs
 
-### 3. Start the Frontend (Terminal 2)
+Keep this terminal running.
 
-Open a **new separate terminal** in the root project folder:
+### 3. Start the Frontend
+
+Open a **second terminal** in the project root directory (`ForeCast-IQ`), not inside the `backend` folder.
+
+Install the Node.js dependencies:
 
 ```bash
-# In the root repository directory
 npm install
+```
 
-# Start Vite dev server
+Start the Vite development server:
+
+```bash
 npm run dev
 ```
 
-> 🌐 **Frontend will be live at:** `http://localhost:5173/`
+Open the local URL printed in your terminal, usually:
+
+**http://localhost:5173/**
+
+Keep this terminal running while using the application.
 
 ---
 
-## 🔄 How the Application Works (3-Step Pipeline)
+## 🔄 How the Application Works
 
-```
+```text
 [Upload CSV / Folder / 1-Click M5]
-               │
-               ▼
-[Standardize to Canonical Schema (Timestamp, Target, Series ID)]
-               │
-               ▼
-[80/20 Chronological Split: 80% Train, 20% Hidden Holdout]
-               │
-               ▼
-[Evaluate 5 Models: ARIMA, Prophet, LightGBM, DeepAR, TFT]
-               │
-               ▼
-[Leaderboard Ranking (Primary: MAPE %, Secondary: RMSE)]
-               │
-               ▼
-[Select Champion Model -> 100% Historical Retraining]
-               │
-               ▼
-[Future Projections (7D/14D/28D/90D) + Safety Stock + CSV Export]
+               |
+               v
+[Standardize Dataset to Canonical Schema]
+               |
+               v
+[Chronological 80/20 Train-Holdout Split]
+               |
+               v
+[Evaluate Candidate Forecasting Models]
+               |
+               v
+[Rank Models by MAPE and RMSE]
+               |
+               v
+[Select Best-Performing Model]
+               |
+               v
+[Retrain on 100% of Historical Data]
+               |
+               v
+[Generate Future Forecasts and Supply Chain Insights]
+               |
+               v
+[Export Forecasts to CSV]
 ```
 
 ### 1. Dataset Ingestion & Preloading
-- **Single CSV or Multi-CSV Folder**: Drag-and-drop your sales time-series data with automatic CSV validation.
-- **1-Click M5 Benchmark**: Instant preloading of the standard Walmart M5 benchmark dataset.
-- **Column Mapping**: Interactive schema mapper to designate Date (`timestamp`), Sales (`target`), and Product/Store ID (`series_id`).
 
-### 2. Chronological Backtesting & Dynamic Leaderboard
-- **Zero Data Leakage**: Strictly splits data chronologically (first 80% for training, last 20% strictly hidden).
-- **5 Candidate ML Models**: Trains **ARIMA**, **Prophet**, **LightGBM**, **DeepAR**, and **TFT** strictly on the 80% training window.
-- **True Metrics**: Predicts the hidden 20 days and computes real **MAPE** (Mean Absolute Percentage Error) and **RMSE** (Root Mean Squared Error) against actual sales ground truth.
-- **Dynamic Leaderboard**: Automatically ranks models from 1st to 5th (lower error is better, champion marked 🏆).
-- **Interactive Holdout Chart**: Visually overlays actual sales against model predictions.
+- **Single CSV or multi-CSV folder:** Upload time-series sales data with automatic CSV validation.
+- **M5 benchmark:** Preload the Walmart M5 benchmark dataset, if the required dataset files and backend support are available.
+- **Column mapping:** Map the date (`timestamp`), sales (`target`), and product/store identifier (`series_id`) to the canonical schema.
 
-### 3. Future Forecasting (100% Historical Retraining)
-- **100% History Fit**: Retrains the selected winning model on all historical observations so recent demand trends are captured.
-- **Multi-Horizon Projection**: Forecasts ahead by **7D, 14D, 28D, or 90D**.
-- **Confidence Intervals**: Computes 80% and 95% uncertainty cones.
-- **Supply Chain Insights**: Recommends safety stock buffers, peak demand dates, and stockout risk estimates based on on-hand warehouse inventory.
-- **1-Click CSV Export**: Downloads complete future numbers for supply chain and ERP systems.
+### 2. Chronological Backtesting & Model Evaluation
+
+- **Chronological split:** Uses the first 80% of observations for training and reserves the final 20% for holdout evaluation.
+- **Candidate models:** ARIMA, Prophet, LightGBM, DeepAR, and Temporal Fusion Transformer (TFT), subject to the configured backend dependencies and implementation.
+- **Evaluation metrics:** Calculates MAPE (Mean Absolute Percentage Error) and RMSE (Root Mean Squared Error) against holdout observations.
+- **Dynamic leaderboard:** Ranks models by forecasting error, with lower values indicating better performance.
+- **Holdout visualization:** Compares actual values against model predictions.
+
+### 3. Future Forecasting
+
+- **Full-history retraining:** Retrains the selected model using all available historical observations.
+- **Multiple forecast horizons:** Supports 7-day, 14-day, 28-day, and 90-day forecasts, where implemented.
+- **Uncertainty estimates:** Provides 80% and 95% prediction intervals, where supported by the selected model.
+- **Supply chain insights:** Can provide safety stock recommendations, peak-demand estimates, and stockout risk indicators based on available inventory data and configured calculations.
+- **CSV export:** Exports future forecasts for further analysis and downstream workflows.
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Frontend**: React 19, Vite, Tailwind CSS v4, Lucide Icons, Custom SVG Time-Series Charts.
-- **Backend**: FastAPI, Uvicorn, Pydantic v2, Pandas, NumPy, PyArrow.
-- **Machine Learning**: LightGBM, Prophet, Statsmodels (ARIMA/SARIMAX), Scikit-Learn, PyTorch.
-- **Storage**: Canonical Parquet engine with fast local caching.
+### Frontend
+- React 19
+- Vite
+- Tailwind CSS v4
+- Lucide Icons
+- Custom SVG time-series charts
 
----
-
-## 🧪 Running Backend Unit Tests
-
-To verify all backend phases and model pipelines:
-
-```bash
-cd backend
-python -m pytest test_phase1.py test_phase2.py test_phase3.py test_phase4.py -v
-```
+### Backend
