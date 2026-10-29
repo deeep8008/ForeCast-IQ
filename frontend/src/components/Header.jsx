@@ -174,14 +174,16 @@ export default function Header({
             <Menu className="w-5 h-5" />
           </button>
 
-          <div>
-            <div className="text-xs font-medium text-[#8E83A3]">
-              {breadcrumb}
+          {activeTab !== 'home' && (
+            <div>
+              <div className="text-xs font-medium text-[#8E83A3]">
+                {breadcrumb}
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold font-heading text-[#1F1B2C] tracking-tight">
+                {title}
+              </h2>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold font-heading text-[#1F1B2C] tracking-tight">
-              {title}
-            </h2>
-          </div>
+          )}
         </div>
 
         {/* Right: Controls & Profile / Auth */}
