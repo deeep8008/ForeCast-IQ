@@ -1031,19 +1031,19 @@ export default function UploadDatasetPage({ onNavigate, onDatasetReady, uploaded
           <div className="p-6 rounded-3xl bg-gradient-to-r from-white via-[#F5EFFF]/60 to-white border border-[#CDC1FF] flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="font-bold text-base text-[#1F1B2C]">
-                Dataset verified and mapped successfully
+                Step 1 Completed: Dataset verified and mapped successfully
               </h3>
               <p className="text-xs text-[#5F5670]">
-                Proceed to the Forecasting Engine to configure horizons (7D, 28D, 90D) and choose between statistical, ML, or deep architectures.
+                Proceed to Evaluation & Backtesting to validate forecasting models on historical rolling folds.
               </p>
             </div>
 
             <button
-              onClick={() => onNavigate('forecast')}
+              onClick={() => onNavigate('evaluation')}
               className="px-6 py-3 rounded-xl bg-[#A294F9] text-white text-xs font-bold hover:bg-[#9181f7] shadow-sm transition-all flex items-center gap-2 shrink-0"
               data-testid="bottom-continue-btn"
             >
-              <span>Continue to Forecast</span>
+              <span>Continue to Evaluation & Backtesting (Step 2)</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

@@ -609,22 +609,22 @@ export default function EvaluationPage({ onNavigate, _onNavigate, uploadedDatase
           </div>
         )}
 
-        {/* Workflow Progression: Step 2 -> Step 3 (Generate Forecast) */}
+        {/* Workflow Progression: Step 2 -> Step 3 (Model Comparison) */}
         <div className="p-5 rounded-2xl bg-white border border-[#E5D9F2] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6">
           <div>
             <div className="text-xs font-bold text-[#1F1B2C]">
               Step 2 Completed: Evaluation & Backtesting
             </div>
             <p className="text-xs text-[#5F5670] mt-0.5">
-              Proceed to generate out-of-sample forward demand forecasts using evaluated models.
+              Proceed to compare model architectures across horizons and select the winning model for demand forecasting.
             </p>
           </div>
           <button
-            onClick={() => navigate && navigate('forecast')}
+            onClick={() => navigate && navigate('comparison')}
             className="px-5 py-2.5 rounded-xl bg-[#A294F9] text-white hover:bg-[#9181f7] text-xs font-semibold transition-colors shadow-xs flex items-center gap-2 shrink-0"
-            data-testid="continue-to-forecast-step-btn"
+            data-testid="continue-to-comparison-step-btn"
           >
-            <span>Proceed to Generate Forecast (Step 3)</span>
+            <span>Proceed to Model Comparison (Step 3)</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

@@ -91,7 +91,22 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
 
   // Forecast configuration state
   const [horizonDays, setHorizonDays] = useState(28);
-  const [modelId, setModelId] = useState('arima');
+  const [modelId, setModelId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('forecastiq_selected_model');
+      if (saved && CORE_MODELS.some(m => m.id === saved)) {
+        return saved;
+      }
+    }
+    return 'arima';
+  });
+
+  const handleSelectModel = (id) => {
+    setModelId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('forecastiq_selected_model', id);
+    }
+  };
   const [recommendedModel, setRecommendedModel] = useState(null);
   const [recommendationReason, setRecommendationReason] = useState(null);
   const [forecastError, setForecastError] = useState(null);
@@ -828,7 +843,7 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
                 {recommendedModel && (
                   <button
                     type="button"
-                    onClick={() => setModelId(recommendedModel)}
+                    onClick={() => handleSelectModel(recommendedModel)}
                     className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors flex items-center gap-1.5"
                     data-testid="use-recommended-model-btn"
                   >
@@ -851,7 +866,7 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
                   return (
                     <div
                       key={m.id}
-                      onClick={() => setModelId(m.id)}
+                      onClick={() => handleSelectModel(m.id)}
                       className={`
                         p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between relative
                         ${isSelected 
@@ -1100,30 +1115,30 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
             </div>
           </div>
 
-          {/* Action Links: Step 3 -> Step 4 */}
+          {/* Action Links: Step 4 -> Step 5 */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-[#E5D9F2] shadow-xs">
             <div>
               <div className="text-xs font-bold text-[#1F1B2C]">
-                Step 3 Completed: Forecast Generated
+                Step 4 Completed: Forecast Generated
               </div>
               <div className="text-xs text-[#5F5670] mt-0.5">
-                Proceed to compare cross-model performance benchmarks and historical consistency across horizons.
+                Proceed to business decision support, inventory replenishment policies, and accuracy drift monitoring.
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <button
-                onClick={() => onNavigate('comparison')}
+                onClick={() => onNavigate('insights')}
                 className="px-5 py-2.5 rounded-xl bg-[#A294F9] text-white hover:bg-[#9181f7] text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5"
-                data-testid="continue-to-comparison-btn"
+                data-testid="continue-to-insights-btn"
               >
-                <span>Proceed to Model Comparison (Step 4) →</span>
+                <span>Proceed to Business Insights (Step 5) →</span>
               </button>
               <button
-                onClick={() => onNavigate('insights')}
+                onClick={() => onNavigate('comparison')}
                 className="px-4 py-2.5 rounded-xl bg-[#F5EFFF] text-[#1F1B2C] hover:bg-[#E5D9F2] border border-[#CDC1FF] text-xs font-semibold transition-colors"
-                data-testid="view-insights-btn"
+                data-testid="continue-to-comparison-btn"
               >
-                Business Insights
+                ← Back to Model Comparison (Step 3)
               </button>
             </div>
           </div>

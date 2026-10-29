@@ -16,9 +16,9 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
     { id: 'explorer', label: 'Data Explorer', icon: Search, badge: null },
     { id: 'upload', label: 'Upload Dataset', icon: Upload, badge: 'Step 1' },
     { id: 'evaluation', label: 'Evaluation & Backtesting', icon: CheckCircle2, badge: 'Step 2' },
-    { id: 'forecast', label: 'Generate Forecast', icon: Zap, badge: 'Step 3' },
-    { id: 'comparison', label: 'Model Comparison', icon: BarChart2, badge: 'Step 4' },
-    { id: 'insights', label: 'Business Insights', icon: Briefcase, badge: 'Decisions' },
+    { id: 'comparison', label: 'Model Comparison', icon: BarChart2, badge: 'Step 3' },
+    { id: 'forecast', label: 'Generate Forecast', icon: Zap, badge: 'Step 4' },
+    { id: 'insights', label: 'Business Insights', icon: Briefcase, badge: 'Step 5' },
   ];
 
   return (

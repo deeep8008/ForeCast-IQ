@@ -244,6 +244,37 @@ export default function ModelComparisonPage({ onNavigate, _onNavigate, uploadedD
     return modelScores.reduce((prev, curr) => (curr.avg < prev.avg ? curr : prev));
   })();
 
+  // Model selection state for passing forward to Generate Forecast (Step 4)
+  const [selectedModelId, setSelectedModelId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('forecastiq_selected_model');
+      if (saved) return saved;
+    }
+    return 'lightgbm';
+  });
+
+  // Automatically default selected model to the empirical winner once evaluated
+  useEffect(() => {
+    const winnerId = scopeBestOverall?.modelId || evalData?.best_model_overall?.model?.toLowerCase();
+    if (winnerId) {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('forecastiq_selected_model') : null;
+      if (!saved) {
+        setSelectedModelId(winnerId);
+      }
+    }
+  }, [scopeBestOverall?.modelId, evalData?.best_model_overall?.model]);
+
+  const handleSelectModelAndForecast = (modelIdToUse) => {
+    const target = modelIdToUse || selectedModelId || 'lightgbm';
+    setSelectedModelId(target);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('forecastiq_selected_model', target);
+    }
+    if (navigate) {
+      navigate('forecast');
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
       {/* Header */}
@@ -579,13 +610,21 @@ export default function ModelComparisonPage({ onNavigate, _onNavigate, uploadedD
                     </th>
                     <th className="py-3 px-4 font-semibold">Horizon Consistency</th>
                     <th className="py-3 px-4 font-semibold">Inference Latency</th>
+                    <th className="py-3 px-4 font-semibold">Select Model</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F5EFFF]">
                   {displayedMetrics.map((row) => (
                     <tr key={row.modelId} className="hover:bg-[#F5EFFF]/40 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-[#1F1B2C]">
-                        {row.name}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{row.name}</span>
+                          {scopeBestOverall?.modelId === row.modelId && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                              🏆 Winner
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 text-[#5F5670]">
                         {row.type}
@@ -612,6 +651,19 @@ export default function ModelComparisonPage({ onNavigate, _onNavigate, uploadedD
                       </td>
                       <td className="py-3.5 px-4 text-[#8E83A3] font-mono">
                         {row.inferenceSpeed}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectModelAndForecast(row.modelId)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                            selectedModelId === row.modelId
+                              ? 'bg-[#A294F9] text-white shadow-xs'
+                              : 'bg-[#F5EFFF] text-[#A294F9] hover:bg-[#A294F9] hover:text-white border border-[#CDC1FF]'
+                          }`}
+                        >
+                          {selectedModelId === row.modelId ? 'Selected ✓' : 'Select →'}
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -658,7 +710,14 @@ export default function ModelComparisonPage({ onNavigate, _onNavigate, uploadedD
                   {displayedMetrics.map((row) => (
                     <tr key={row.modelId} className="hover:bg-[#F5EFFF]/40 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-[#1F1B2C]">
-                        {row.name}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{row.name}</span>
+                          {scopeBestOverall?.modelId === row.modelId && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                              🏆 Winner
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 text-[#5F5670]">
                         {row.type}
@@ -1010,18 +1069,94 @@ export default function ModelComparisonPage({ onNavigate, _onNavigate, uploadedD
           <strong> Temporal Fusion Transformer (TFT)</strong> demonstrates superior multi-step horizon consistency for complex seasonal patterns with external price and holiday covariates.
         </p>
 
-        {/* Workflow Progression: Step 4 -> Business Insights */}
-        <div className="pt-3 border-t border-[#E5D9F2] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="text-xs text-[#5F5670]">
-            Step 4 Completed: Model Comparison verified across compatible horizons.
+      </section>
+
+      {/* Model Selection and Workflow Progression: Step 3 -> Step 4 (Generate Forecast) */}
+      <section className="p-6 rounded-3xl bg-gradient-to-r from-white via-[#F5EFFF]/70 to-white border border-[#CDC1FF] shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-[#A294F9]">
+              Step 3 Completed • Architecture Benchmark & Model Selection
+            </div>
+            <h3 className="text-lg font-bold font-heading text-[#1F1B2C]">
+              Select Forecasting Model for Step 4
+            </h3>
+            <p className="text-xs text-[#5F5670]">
+              Review comparative performance and select which architecture to deploy for forward demand inference.
+            </p>
           </div>
-          <button
-            onClick={() => navigate && navigate('insights')}
-            className="px-5 py-2.5 rounded-xl bg-[#A294F9] text-white hover:bg-[#9181f7] text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 self-start sm:self-auto"
-            data-testid="continue-to-insights-btn"
-          >
-            <span>Explore Business Insights & Monitoring →</span>
-          </button>
+          {scopeBestOverall && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold shrink-0">
+              <span>🏆 Recommended Winner:</span>
+              <span className="uppercase">{scopeBestOverall.model}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Model Selection Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+          {[
+            { id: 'arima', name: 'ARIMA', tag: 'Baseline' },
+            { id: 'sarima', name: 'SARIMA', tag: 'Seasonal' },
+            { id: 'prophet', name: 'Prophet', tag: 'Calendar' },
+            { id: 'lightgbm', name: 'LightGBM', tag: 'Tabular ML' },
+            { id: 'deepar', name: 'DeepAR', tag: 'Deep RNN' },
+            { id: 'tft', name: 'TFT', tag: 'Attention' },
+          ].map(m => {
+            const isSelected = selectedModelId === m.id;
+            const isWinner = scopeBestOverall?.modelId === m.id || (!scopeBestOverall && m.id === 'lightgbm');
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setSelectedModelId(m.id);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('forecastiq_selected_model', m.id);
+                  }
+                }}
+                className={`p-3 rounded-xl border text-left transition-all relative ${
+                  isSelected 
+                    ? 'border-[#A294F9] bg-[#F5EFFF] shadow-xs ring-2 ring-[#A294F9]/30' 
+                    : 'border-[#E5D9F2] bg-white hover:border-[#CDC1FF]'
+                }`}
+              >
+                {isWinner && (
+                  <span className="absolute -top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-600 text-white font-bold tracking-tight">
+                    Winner
+                  </span>
+                )}
+                <div className="font-bold text-xs text-[#1F1B2C] flex items-center justify-between">
+                  <span>{m.name}</span>
+                  {isSelected && <span className="w-2 h-2 rounded-full bg-[#A294F9]"></span>}
+                </div>
+                <div className="text-[10px] text-[#8E83A3] mt-0.5">{m.tag}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Progression Action Row */}
+        <div className="pt-3 border-t border-[#E5D9F2] flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-[#5F5670]">
+            Selected Model: <strong className="text-[#1F1B2C] uppercase">{selectedModelId}</strong> will be configured for forward inference.
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => handleSelectModelAndForecast(selectedModelId)}
+              className="px-6 py-2.5 rounded-xl bg-[#A294F9] text-white hover:bg-[#9181f7] text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+              data-testid="continue-to-forecast-btn"
+            >
+              <span>Proceed to Generate Forecast (Step 4) →</span>
+            </button>
+            <button
+              onClick={() => navigate && navigate('insights')}
+              className="px-4 py-2.5 rounded-xl bg-white hover:bg-[#F5EFFF] border border-[#CDC1FF] text-[#5F5670] hover:text-[#1F1B2C] text-xs font-medium transition-colors"
+              data-testid="continue-to-insights-btn"
+            >
+              Business Insights
+            </button>
+          </div>
         </div>
       </section>
     </div>
