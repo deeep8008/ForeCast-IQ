@@ -1,1 +1,1 @@
-# api package
+# ForecastIQ API Module

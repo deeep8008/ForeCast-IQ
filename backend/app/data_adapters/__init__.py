@@ -1,1 +1,0 @@
-# data_adapters package

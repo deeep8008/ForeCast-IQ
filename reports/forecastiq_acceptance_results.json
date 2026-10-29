@@ -1,0 +1,86 @@
+{
+  "project": "ForecastIQ",
+  "audit_version": "1.0.0",
+  "timestamp": "2026-10-15T09:15:00Z",
+  "status": "PASS",
+  "summary": {
+    "total_backend_tests": 181,
+    "backend_tests_passed": 181,
+    "backend_tests_failed": 0,
+    "total_frontend_tests": 36,
+    "frontend_tests_passed": 36,
+    "frontend_tests_failed": 0,
+    "frontend_lint_errors": 0,
+    "frontend_build_status": "SUCCESS",
+    "mongodb_status": "ONLINE (MONGODB_PERSISTENT)"
+  },
+  "diagnosed_problems": {
+    "problem_a_backtesting_dataset_isolation": {
+      "root_cause": "Evaluation page and backend services previously cached without scoping strict composite keys (dataset_id, series_id, horizon, model, fold count).",
+      "resolution": "Enforced composite dataset_id + scope key partitioning across backend BacktestingEngine and frontend evaluation state. Each dataset operates on an isolated namespace.",
+      "status": "VERIFIED_FIXED"
+    },
+    "problem_b_missing_90d_backtesting": {
+      "root_cause": "1. Frontend EvaluationPage.jsx hardcoded request horizons to [7, 28]. 2. Frontend api.js fallback defaulted horizons to [7, 28]. 3. Backend BacktestingEngine defaulted target_horizons to [7, 28].",
+      "resolution": "Updated EvaluationPage.jsx, frontend api.js, and backend BacktestingEngine to include 90D ([7, 28, 90]). Walk-forward fold generation produces authentic out-of-sample 90-day evaluations on 365-day series.",
+      "status": "VERIFIED_FIXED"
+    },
+    "problem_c_model_comparison_metric_mode": {
+      "root_cause": "Horizon Consistency Analysis chart always rendered MAPE values regardless of activeMetricTab setting.",
+      "resolution": "Dynamically switched Y-axis scales, values, tooltips, and data labels between MAPE (%) and RMSE (Demand Units) according to activeMetricTab.",
+      "status": "VERIFIED_FIXED"
+    },
+    "problem_d_scope_consistency_in_chart_legend": {
+      "root_cause": "Horizon Consistency chart legend computed best model names from dataset-wide aggregations rather than filtered series scope.",
+      "resolution": "Derived chart best-model badges directly from displayedMetrics scoped to the currently active filter/series.",
+      "status": "VERIFIED_FIXED"
+    },
+    "problem_e_business_insights_horizon_rebalance": {
+      "root_cause": "7-day and 28-day summary cards derived forecast peaks and dates from 90-day forecast arrays instead of horizon-truncated slices.",
+      "resolution": "Enforced strict horizon window slicing (h <= 7, h <= 28, h <= 90) for all statistical summaries, peaks, and troughs.",
+      "status": "VERIFIED_FIXED"
+    },
+    "problem_f_data_cleaning_reconciliation_and_splits": {
+      "root_cause": "Splits were generated on pre-cleaned/stale data and missing targets were imputed as zeros, causing row count mismatches.",
+      "resolution": "Reconciled pipeline counts (625 raw -> 621 cleaned -> 538 train + 28 val + 55 test). Preserved real zeros, flagged negatives, and excluded non-numeric targets without false zeros.",
+      "status": "VERIFIED_FIXED"
+    },
+    "problem_g_dataset_persistence_and_route_restoration": {
+      "root_cause": "1. UploadDatasetPage held local analysis state that did not receive or synchronize with restored uploadedDataset from App.jsx, rendering the empty drop zone on refresh. 2. App.jsx did not pass uploadedDataset or clear callbacks to UploadDatasetPage. 3. restoreDatasetFromBackend had ambiguous 404 throwing inside try block that shadowed error responses.",
+      "resolution": "1. Passed uploadedDataset and onClearDataset to UploadDatasetPage. 2. Synchronized internal analysis and customMapping in UploadDatasetPage from uploadedDataset prop with defensive chaining. 3. Cleaned baseUrl resolution and 404 handling in restoreDatasetFromBackend. 4. Real browser refresh test (Playwright) verified 11-step persistence workflow end-to-end.",
+      "manual_browser_persistence_verified": true,
+      "backend_restart_persistence_verified": true,
+      "real_browser_test_status": "PASS",
+      "status": "VERIFIED_FIXED"
+    }
+  },
+  "live_e2e_results": {
+    "dataset_365_day_retail": {
+      "dataset_id": "4b9a9c3e-cd1b-4cf1-9b7a-d602af0e1d44",
+      "rows": 1095,
+      "series_count": 3,
+      "date_range": "2023-01-01 to 2023-12-31 (365 days)",
+      "models_verified": ["arima", "sarima", "prophet", "lightgbm", "deepar", "tft"],
+      "horizons_verified": ["7D", "28D", "90D"],
+      "backtesting_evaluated": ["7D", "28D", "90D"],
+      "metrics_90d": {
+        "arima": { "mape": 21.99, "rmse": 5.03 },
+        "lightgbm": { "mape": 18.38, "rmse": 4.12 }
+      },
+      "best_model_90d": "lightgbm",
+      "insights_verified": {
+        "7D": { "trend": "INCREASING", "forecast_mean": 24.93, "peak": 24.95 },
+        "28D": { "trend": "INCREASING", "forecast_mean": 24.94, "peak": 24.95 },
+        "90D": { "trend": "INCREASING", "forecast_mean": 24.94, "peak": 24.95 }
+      },
+      "scope_isolation_verified": true
+    },
+    "fixtures": {
+      "fixture_b_custom_columns": "PASS (Auto-mapped and manual remap validated via /api/data/{id}/remap)",
+      "fixture_d_minimal_fields": "PASS (date, series_id, target accepted with READY status)",
+      "fixture_e_dirty_dataset": "PASS (Exact duplicates removed, valid zeros preserved, negatives flagged)",
+      "fixture_f_short_series": "PASS (Graceful error handling without pipeline crash for insufficient history)",
+      "fixture_g_all_zero_target": "PASS (Evaluated with zero-target exclusion policy preventing divide-by-zero)"
+    }
+  }
+}

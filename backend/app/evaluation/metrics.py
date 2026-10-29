@@ -1,96 +1,142 @@
+"""
+Evaluation Metrics for Time-Series Forecasting (Phase 8)
+ForecastIQ Backend
+
+Implements:
+1. MAPE (Mean Absolute Percentage Error) with strict zero-actual policy:
+   - Excludes zero actual values to prevent division by zero and arbitrary infinity distortions.
+   - Reports valid count, zero actual count, and total count.
+   - If all actual values are zero, returns None (not-defined) rather than misleading zero.
+2. RMSE (Root Mean Squared Error):
+   - Computes square root of mean squared deviations between actual and predicted values.
+"""
+from typing import List, Dict, Any, Optional, Tuple, Union
 import numpy as np
-from typing import Union, List
 
-class Metrics:
+
+class EvaluationMetrics:
     """
-    Pure mathematical evaluation metrics for time-series forecasting.
-    Includes zero-division safety rules.
+    Robust time-series forecasting evaluation metrics.
     """
 
-    @staticmethod
-    def rmse(y_true: Union[np.ndarray, List[float]], y_pred: Union[np.ndarray, List[float]]) -> float:
+    @classmethod
+    def calculate_mape(
+        cls,
+        actuals: List[float],
+        predictions: List[float]
+    ) -> Dict[str, Any]:
         """
-        Root Mean Squared Error: sqrt( 1/N * sum((y_true - y_pred)^2) )
-        Expressed in original target units.
+        Calculate MAPE with documented zero-actual policy:
+        - Absolute percentage error: |actual - pred| / actual
+        - Observations where actual == 0 are strictly excluded from the denominator.
+        - Returns:
+            mape: Optional[float] (percentage 0-100%, or None if no valid non-zero actuals)
+            mape_valid_count: int
+            mape_zero_actual_count: int
+            total_count: int
         """
-        y_t = np.asarray(y_true, dtype=float)
-        y_p = np.asarray(y_pred, dtype=float)
+        if len(actuals) != len(predictions):
+            raise ValueError(
+                f"Length mismatch: actuals has {len(actuals)} items, "
+                f"predictions has {len(predictions)} items."
+            )
 
-        if len(y_t) == 0:
-            return 0.0
+        total_count = len(actuals)
+        if total_count == 0:
+            return {
+                "mape": None,
+                "mape_valid_count": 0,
+                "mape_zero_actual_count": 0,
+                "total_count": 0,
+                "note": "Empty sequence; cannot compute MAPE."
+            }
 
-        diff = y_t - y_p
-        diff = np.nan_to_num(diff, nan=9999.0, posinf=9999.0, neginf=-9999.0)
-        mse = np.mean(diff ** 2)
-        val = float(np.sqrt(mse))
-        if np.isnan(val) or np.isinf(val):
-            return 9999.0
-        return round(val, 4)
+        valid_apes: List[float] = []
+        zero_actual_count = 0
 
-    @staticmethod
-    def mae(y_true: Union[np.ndarray, List[float]], y_pred: Union[np.ndarray, List[float]]) -> float:
-        """
-        Mean Absolute Error: 1/N * sum(|y_true - y_pred|)
-        """
-        y_t = np.asarray(y_true, dtype=float)
-        y_p = np.asarray(y_pred, dtype=float)
+        for act, pred in zip(actuals, predictions):
+            act_f = float(act)
+            pred_f = float(pred)
 
-        if len(y_t) == 0:
-            return 0.0
-
-        diff = np.abs(y_t - y_p)
-        diff = np.nan_to_num(diff, nan=9999.0, posinf=9999.0, neginf=9999.0)
-        val = float(np.mean(diff))
-        if np.isnan(val) or np.isinf(val):
-            return 9999.0
-        return round(val, 4)
-
-    @staticmethod
-    def mape(
-        y_true: Union[np.ndarray, List[float]],
-        y_pred: Union[np.ndarray, List[float]],
-        epsilon: float = 1e-8
-    ) -> float:
-        y_t = np.asarray(y_true, dtype=float)
-        y_p = np.asarray(y_pred, dtype=float)
-
-        if len(y_t) == 0:
-            return 0.0
-
-        # Replace any NaNs in predictions with fallback
-        y_p = np.nan_to_num(y_p, nan=0.0, posinf=9999.0, neginf=0.0)
-
-        # Mask non-zero actual observations
-        non_zero_mask = y_t != 0
-
-        if np.any(non_zero_mask):
-            pct_errors = np.abs((y_t[non_zero_mask] - y_p[non_zero_mask]) / y_t[non_zero_mask])
-            mape_value = float(np.mean(pct_errors) * 100.0)
-        else:
-            if np.all(y_p == 0):
-                mape_value = 0.0
+            if act_f == 0.0 or np.isclose(act_f, 0.0):
+                zero_actual_count += 1
             else:
-                pct_errors = np.abs((y_t - y_p) / np.maximum(np.abs(y_t), epsilon))
-                mape_value = float(np.mean(pct_errors) * 100.0)
+                ape = abs(act_f - pred_f) / abs(act_f)
+                valid_apes.append(ape)
 
-        if np.isnan(mape_value) or np.isinf(mape_value):
-            return 9999.0
-        return round(min(9999.0, mape_value), 4)
+        valid_count = len(valid_apes)
 
-    @staticmethod
-    def wape(y_true: Union[np.ndarray, List[float]], y_pred: Union[np.ndarray, List[float]]) -> float:
+        if valid_count == 0:
+            return {
+                "mape": None,
+                "mape_valid_count": 0,
+                "mape_zero_actual_count": zero_actual_count,
+                "total_count": total_count,
+                "note": "All actual observations are zero; MAPE is undefined by zero-actual policy."
+            }
+
+        mean_ape = float(np.mean(valid_apes))
+        mape_percentage = round(mean_ape * 100.0, 2)
+
+        return {
+            "mape": mape_percentage,
+            "mape_valid_count": valid_count,
+            "mape_zero_actual_count": zero_actual_count,
+            "total_count": total_count,
+            "note": f"Evaluated on {valid_count}/{total_count} non-zero actual observations."
+        }
+
+    @classmethod
+    def calculate_rmse(
+        cls,
+        actuals: List[float],
+        predictions: List[float]
+    ) -> Dict[str, Any]:
         """
-        Weighted Absolute Percentage Error: sum(|y_true - y_pred|) / sum(|y_true|) * 100%
+        Calculate RMSE (Root Mean Squared Error).
         """
-        y_t = np.asarray(y_true, dtype=float)
-        y_p = np.asarray(y_pred, dtype=float)
-        y_p = np.nan_to_num(y_p, nan=0.0)
+        if len(actuals) != len(predictions):
+            raise ValueError(
+                f"Length mismatch: actuals has {len(actuals)} items, "
+                f"predictions has {len(predictions)} items."
+            )
 
-        sum_actual = np.sum(np.abs(y_t))
-        if sum_actual == 0:
-            return 0.0 if np.sum(np.abs(y_p)) == 0 else 100.0
+        sample_count = len(actuals)
+        if sample_count == 0:
+            return {
+                "rmse": None,
+                "sample_count": 0
+            }
 
-        val = float((np.sum(np.abs(y_t - y_p)) / sum_actual) * 100.0)
-        if np.isnan(val) or np.isinf(val):
-            return 9999.0
-        return round(val, 4)
+        act_arr = np.array(actuals, dtype=float)
+        pred_arr = np.array(predictions, dtype=float)
+
+        squared_errors = (act_arr - pred_arr) ** 2
+        mean_squared_error = float(np.mean(squared_errors))
+        rmse_val = round(float(np.sqrt(mean_squared_error)), 2)
+
+        return {
+            "rmse": rmse_val,
+            "sample_count": sample_count
+        }
+
+    @classmethod
+    def evaluate_forecast(
+        cls,
+        actuals: List[float],
+        predictions: List[float]
+    ) -> Dict[str, Any]:
+        """
+        Compute both MAPE and RMSE and package standardized metrics dictionary.
+        """
+        mape_res = cls.calculate_mape(actuals, predictions)
+        rmse_res = cls.calculate_rmse(actuals, predictions)
+
+        return {
+            "mape": mape_res["mape"],
+            "rmse": rmse_res["rmse"],
+            "mape_valid_count": mape_res["mape_valid_count"],
+            "mape_zero_actual_count": mape_res["mape_zero_actual_count"],
+            "sample_count": rmse_res["sample_count"],
+            "note": mape_res.get("note", "")
+        }

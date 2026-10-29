@@ -1,0 +1,286 @@
+{
+  "health": {
+    "status": "healthy",
+    "service": "ForecastIQ Universal Dataset Engine",
+    "version": "1.0.0",
+    "database": {
+      "type": "mongodb",
+      "enabled": true,
+      "connected": true,
+      "database_name": "forecastiq"
+    }
+  },
+  "db_status": {
+    "mongodb_enabled": true,
+    "connected": true,
+    "database_name": "forecastiq",
+    "status": "ONLINE",
+    "persistence_mode": "MONGODB_PERSISTENT"
+  },
+  "upload": {
+    "dataset_id": "4b9a9c3e-cd1b-4cf1-9b7a-d602af0e1d44",
+    "filename": "01_valid_retail_multiseries.csv",
+    "rows": 1095,
+    "columns": 6,
+    "status": "READY",
+    "detected_mapping": {
+      "date": "date",
+      "series_id": "series_id",
+      "target": "target",
+      "optional": {
+        "store_id": "store_id",
+        "price": "price",
+        "promotion": "promotion"
+      }
+    },
+    "summary": "Successfully ingested 1,095 rows and 6 columns from '01_valid_retail_multiseries.csv'. Status: READY."
+  },
+  "readiness": "READY",
+  "forecasts": {
+    "arima": {
+      "7D": {
+        "points": 7,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-07",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 1.98
+      },
+      "28D": {
+        "points": 28,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-28",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 4.01
+      },
+      "90D": {
+        "points": 90,
+        "first_date": "2024-01-01",
+        "last_date": "2024-03-30",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 5.92
+      }
+    },
+    "sarima": {
+      "7D": {
+        "points": 7,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-07",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 2.08
+      },
+      "28D": {
+        "points": 28,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-28",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 3.0
+      },
+      "90D": {
+        "points": 90,
+        "first_date": "2024-01-01",
+        "last_date": "2024-03-30",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 10.08
+      }
+    },
+    "prophet": {
+      "7D": {
+        "points": 7,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-07",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 49.08
+      },
+      "28D": {
+        "points": 28,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-28",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 34.01
+      },
+      "90D": {
+        "points": 90,
+        "first_date": "2024-01-01",
+        "last_date": "2024-03-30",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 89.67
+      }
+    },
+    "lightgbm": {
+      "7D": {
+        "points": 7,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-07",
+        "valid": true,
+        "uncertainty_provided": false,
+        "exec_time_ms": 91.43
+      },
+      "28D": {
+        "points": 28,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-28",
+        "valid": true,
+        "uncertainty_provided": false,
+        "exec_time_ms": 305.03
+      },
+      "90D": {
+        "points": 90,
+        "first_date": "2024-01-01",
+        "last_date": "2024-03-30",
+        "valid": true,
+        "uncertainty_provided": false,
+        "exec_time_ms": 1008.53
+      }
+    },
+    "deepar": {
+      "7D": {
+        "points": 7,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-07",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 244.06
+      },
+      "28D": {
+        "points": 28,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-28",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 315.49
+      },
+      "90D": {
+        "points": 90,
+        "first_date": "2024-01-01",
+        "last_date": "2024-03-30",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 457.6
+      }
+    },
+    "tft": {
+      "7D": {
+        "points": 7,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-07",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 167.86
+      },
+      "28D": {
+        "points": 28,
+        "first_date": "2024-01-01",
+        "last_date": "2024-01-28",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 356.0
+      },
+      "90D": {
+        "points": 90,
+        "first_date": "2024-01-01",
+        "last_date": "2024-03-30",
+        "valid": true,
+        "uncertainty_provided": true,
+        "exec_time_ms": 871.44
+      }
+    }
+  },
+  "backtest": {
+    "horizons_evaluated": [
+      "7D",
+      "28D",
+      "90D"
+    ],
+    "table_1_mape": {
+      "arima": {
+        "7D": 6.38,
+        "28D": 12.16,
+        "90D": 21.99
+      },
+      "lightgbm": {
+        "7D": 8.02,
+        "28D": 8.24,
+        "90D": 18.38
+      }
+    },
+    "table_2_rmse": {
+      "arima": {
+        "7D": 1.68,
+        "28D": 3.48,
+        "90D": 5.03
+      },
+      "lightgbm": {
+        "7D": 2.11,
+        "28D": 2.01,
+        "90D": 4.12
+      }
+    },
+    "best_per_horizon": {
+      "7D": {
+        "best_model": "arima",
+        "mape": 6.38,
+        "rmse": 1.68,
+        "is_tie": false,
+        "tied_models": []
+      },
+      "28D": {
+        "best_model": "lightgbm",
+        "mape": 8.24,
+        "rmse": 2.01,
+        "is_tie": false,
+        "tied_models": []
+      },
+      "90D": {
+        "best_model": "lightgbm",
+        "mape": 18.38,
+        "rmse": 4.12,
+        "is_tie": false,
+        "tied_models": []
+      }
+    }
+  },
+  "insights": {
+    "7D": {
+      "direction": "INCREASING",
+      "forecast_mean": 24.93,
+      "peak_value": 24.95,
+      "peak_date": "2024-01-02",
+      "recent_average": 21.74,
+      "forecast_period": "2024-01-01 to 2024-01-07"
+    },
+    "28D": {
+      "direction": "INCREASING",
+      "forecast_mean": 24.94,
+      "peak_value": 24.95,
+      "peak_date": "2024-01-02",
+      "recent_average": 21.74,
+      "forecast_period": "2024-01-01 to 2024-01-28"
+    },
+    "90D": {
+      "direction": "INCREASING",
+      "forecast_mean": 24.94,
+      "peak_value": 24.95,
+      "peak_date": "2024-01-02",
+      "recent_average": 21.74,
+      "forecast_period": "2024-01-01 to 2024-03-30"
+    }
+  },
+  "scope_isolation": {
+    "store_01_mean": 24.93,
+    "store_02_mean": 23.36,
+    "isolated": true
+  },
+  "monitoring": {
+    "status": "ACCURACY DRIFT",
+    "health_entries": 0
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "B_non_canonical": {
+    "dataset_id": "c2cb7d64-f216-4540-8304-24c69700c42e",
+    "rows": 100,
+    "detected_mapping": {
+      "date": "",
+      "series_id": "sku",
+      "target": "",
+      "optional": {
+        "feature_transaction_date": "transaction_date",
+        "feature_daily_sales": "daily_sales"
+      }
+    },
+    "status": "INVALID"
+  },
+  "D_minimal": {
+    "dataset_id": "3de49bdf-b269-42f6-a1a8-b14e6ee0fbce",
+    "rows": 120,
+    "status": "READY"
+  },
+  "E_dirty": {
+    "dataset_id": "40132253-5081-4623-b085-86c8807814ad",
+    "duplicates_detected": 0,
+    "pipeline_status": "READY FOR MODEL TRAINING"
+  },
+  "F_short_series": {
+    "dataset_id": "de363717-4382-4cfb-9395-7074de5ee0ec",
+    "rows": 15,
+    "status": "READY",
+    "90D_forecast_handling": "error"
+  },
+  "G_all_zero": {
+    "dataset_id": "31fa89d3-27ca-4780-8003-a2b3590fa5d5",
+    "status": "READY"
+  }
+}
