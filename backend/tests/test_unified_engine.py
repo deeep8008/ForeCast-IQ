@@ -332,6 +332,8 @@ def test_generic_enterprise_dataset_smoke_test():
 def test_real_m5_sample_smoke_test():
     # Convert real local M5 sample using M5Adapter
     conv_res = client.post("/api/data/m5/convert?max_series=2&max_days=60")
+    if conv_res.status_code == 404:
+        pytest.skip("M5 dataset files not found on server.")
     assert conv_res.status_code == 200
     dataset_id = conv_res.json()["dataset_id"]
 

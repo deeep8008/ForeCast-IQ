@@ -27,7 +27,7 @@ def detect_candidate_columns(columns: List[str]) -> Dict[str, Any]:
 
     # Mandatory
     date_col = match_alias(["date", "datetime", "timestamp", "ds", "time", "d", "observation_date"])
-    series_col = match_alias(["series_id", "series", "store_item", "unique_id", "ts_id", "store", "item_id", "sku"])
+    series_col = match_alias(["series_id", "series", "store_item", "unique_id", "ts_id"])
     target_col = match_alias(["target", "sales", "demand", "units", "y", "quantity", "val", "value", "revenue"])
 
     # Optional canonical
