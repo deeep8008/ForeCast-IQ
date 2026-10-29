@@ -118,21 +118,45 @@ class UnifiedForecastEngine:
         mapping = entry.get("mapping") or detect_candidate_columns(list(df.columns))
 
         series_col = mapping.get("series_id") or "series_id"
-        date_col = mapping.get("date", "date")
-        target_col = mapping.get("target", "target")
+        date_col = mapping.get("date") or "date"
+        target_col = mapping.get("target") or "target"
         composite_keys = mapping.get("composite_series_keys") or []
 
         if composite_keys and all(ck in df.columns for ck in composite_keys) and series_col not in df.columns:
             df["series_id"] = df[composite_keys].astype(str).agg("__".join, axis=1)
             series_col = "series_id"
         elif series_col not in df.columns:
-            df["series_id"] = "default_series"
-            series_col = "series_id"
+            cand_entities = mapping.get("candidate_entity_columns") or []
+            cand_in_df = [c for c in cand_entities if c in df.columns]
+            if len(cand_in_df) > 1:
+                df["series_id"] = df[cand_in_df].astype(str).agg("__".join, axis=1)
+                series_col = "series_id"
+            elif len(cand_in_df) == 1:
+                series_col = cand_in_df[0]
+            elif "series_id" in df.columns:
+                series_col = "series_id"
+            else:
+                df["series_id"] = "default_series"
+                series_col = "series_id"
+
+        # Defensive fallback resolution
+        if date_col not in df.columns:
+            for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]:
+                m = next((c for c in df.columns if c.lower() == cand), None)
+                if m:
+                    date_col = m
+                    break
+        if target_col not in df.columns:
+            for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+                m = next((c for c in df.columns if c.lower() == cand), None)
+                if m:
+                    target_col = m
+                    break
 
         if date_col not in df.columns:
-            raise ValueError(f"Date column '{date_col}' not found in dataset.")
+            raise ValueError(f"Date column '{date_col}' not found in dataset. Available columns: {list(df.columns)}")
         if target_col not in df.columns:
-            raise ValueError(f"Target column '{target_col}' not found in dataset.")
+            raise ValueError(f"Target column '{target_col}' not found in dataset. Available columns: {list(df.columns)}")
 
         resolved_series = resolve_series_id(
             df,
@@ -237,8 +261,20 @@ class UnifiedForecastEngine:
         """
         Fit forecaster on series data and execute out-of-sample forecast.
         """
-        time_col = mapping.get("date", "date")
-        target_col = mapping.get("target", "target")
+        time_col = mapping.get("date") or "date"
+        target_col = mapping.get("target") or "target"
+        if time_col not in series_df.columns:
+            for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]:
+                m = next((c for c in series_df.columns if c.lower() == cand), None)
+                if m:
+                    time_col = m
+                    break
+        if target_col not in series_df.columns:
+            for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+                m = next((c for c in series_df.columns if c.lower() == cand), None)
+                if m:
+                    target_col = m
+                    break
 
         HorizonManager.validate_history_sufficiency(
             horizon=horizon,

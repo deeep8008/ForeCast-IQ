@@ -48,9 +48,9 @@ def clean_canonical_dataset(
     notes: List[str] = []
     original_rows = len(df)
     
-    date_col = mapping.get("date", "date")
+    date_col = mapping.get("date") or "date"
     series_col = mapping.get("series_id") or "series_id"
-    target_col = mapping.get("target", "target")
+    target_col = mapping.get("target") or "target"
     composite_keys = mapping.get("composite_series_keys") or []
 
     # Work on a copy
@@ -62,9 +62,34 @@ def clean_canonical_dataset(
         work_df[series_col] = work_df[composite_keys].astype(str).agg("__".join, axis=1)
         notes.append(f"Constructed composite internal series identifier from columns: {', '.join(composite_keys)}.")
     elif series_col not in work_df.columns or work_df[series_col].isna().all():
-        series_col = "series_id"
-        work_df[series_col] = "default_series"
-        notes.append("Assigned verified single-series internal identifier 'default_series'.")
+        cand_entities = mapping.get("candidate_entity_columns") or []
+        cand_in_df = [c for c in cand_entities if c in work_df.columns]
+        if len(cand_in_df) > 1:
+            series_col = "series_id"
+            work_df[series_col] = work_df[cand_in_df].astype(str).agg("__".join, axis=1)
+            notes.append(f"Constructed composite internal series identifier from candidate columns: {', '.join(cand_in_df)}.")
+        elif len(cand_in_df) == 1:
+            series_col = cand_in_df[0]
+        elif "series_id" in work_df.columns:
+            series_col = "series_id"
+        else:
+            series_col = "series_id"
+            work_df[series_col] = "default_series"
+            notes.append("Assigned verified single-series internal identifier 'default_series'.")
+
+    # Defensive resolution of date_col and target_col
+    if date_col not in work_df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month"]:
+            m = next((c for c in work_df.columns if c.lower() == cand), None)
+            if m:
+                date_col = m
+                break
+    if target_col not in work_df.columns:
+        for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+            m = next((c for c in work_df.columns if c.lower() == cand), None)
+            if m:
+                target_col = m
+                break
 
     # Step 1: Remove exact duplicate rows
     initial_len = len(work_df)
@@ -285,9 +310,9 @@ def analyze_series_quality(
     - mean, std, min, median, max
     - horizon feasibility: 7D (>= 28 obs), 28D (>= 90 obs), 90D (>= 180 obs)
     """
-    date_col = mapping.get("date", "date")
+    date_col = mapping.get("date") or "date"
     series_col = mapping.get("series_id") or "series_id"
-    target_col = mapping.get("target", "target")
+    target_col = mapping.get("target") or "target"
     composite_keys = mapping.get("composite_series_keys") or []
 
     work_df = df.copy()
@@ -295,8 +320,31 @@ def analyze_series_quality(
         series_col = "series_id"
         work_df[series_col] = work_df[composite_keys].astype(str).agg("__".join, axis=1)
     elif series_col not in work_df.columns:
-        series_col = "series_id"
-        work_df[series_col] = "default_series"
+        cand_entities = mapping.get("candidate_entity_columns") or []
+        cand_in_df = [c for c in cand_entities if c in work_df.columns]
+        if len(cand_in_df) > 1:
+            series_col = "series_id"
+            work_df[series_col] = work_df[cand_in_df].astype(str).agg("__".join, axis=1)
+        elif len(cand_in_df) == 1:
+            series_col = cand_in_df[0]
+        elif "series_id" in work_df.columns:
+            series_col = "series_id"
+        else:
+            series_col = "series_id"
+            work_df[series_col] = "default_series"
+
+    if date_col not in work_df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month"]:
+            m = next((c for c in work_df.columns if c.lower() == cand), None)
+            if m:
+                date_col = m
+                break
+    if target_col not in work_df.columns:
+        for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+            m = next((c for c in work_df.columns if c.lower() == cand), None)
+            if m:
+                target_col = m
+                break
 
     if date_col not in work_df.columns:
         return SeriesQualityAnalysisReport(
@@ -459,11 +507,18 @@ def split_dataset_chronological_80_20(
     - Recombines into overall train_df and test_df while maintaining series identities.
     - Missing series_id is handled via Phase 1 internal resolution ('default_series' or composite keys).
     """
-    time_col = mapping.get("date", "date")
-    series_col = mapping.get("series_id", "series_id")
+    time_col = mapping.get("date") or "date"
+    series_col = mapping.get("series_id") or "series_id"
     composite_keys = mapping.get("composite_series_keys") or []
 
     work_df = df.copy()
+    if time_col not in work_df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month"]:
+            m = next((c for c in work_df.columns if c.lower() == cand), None)
+            if m:
+                time_col = m
+                break
+
     work_df[time_col] = pd.to_datetime(work_df[time_col], errors="coerce")
     work_df = work_df.dropna(subset=[time_col])
 
@@ -472,8 +527,18 @@ def split_dataset_chronological_80_20(
         work_df["series_id"] = work_df[composite_keys].astype(str).agg("__".join, axis=1)
         series_col = "series_id"
     elif series_col not in work_df.columns:
-        work_df["series_id"] = "default_series"
-        series_col = "series_id"
+        cand_entities = mapping.get("candidate_entity_columns") or []
+        cand_in_df = [c for c in cand_entities if c in work_df.columns]
+        if len(cand_in_df) > 1:
+            series_col = "series_id"
+            work_df[series_col] = work_df[cand_in_df].astype(str).agg("__".join, axis=1)
+        elif len(cand_in_df) == 1:
+            series_col = cand_in_df[0]
+        elif "series_id" in work_df.columns:
+            series_col = "series_id"
+        else:
+            work_df["series_id"] = "default_series"
+            series_col = "series_id"
 
     train_parts = []
     test_parts = []
@@ -504,11 +569,18 @@ def compute_chronological_splits(
     Never random shuffle. Strictly preserves temporal order per series.
     Also supports explicit test_horizon_days / val_horizon_days when requested by legacy callers.
     """
-    date_col = mapping.get("date", "date")
-    series_col = mapping.get("series_id", "series_id")
+    date_col = mapping.get("date") or "date"
+    series_col = mapping.get("series_id") or "series_id"
     composite_keys = mapping.get("composite_series_keys") or []
 
     work_df = df.copy()
+    if date_col not in work_df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month"]:
+            m = next((c for c in work_df.columns if c.lower() == cand), None)
+            if m:
+                date_col = m
+                break
+
     work_df[date_col] = pd.to_datetime(work_df[date_col], errors="coerce")
     work_df = work_df.dropna(subset=[date_col]).sort_values(by=date_col)
 
@@ -516,8 +588,18 @@ def compute_chronological_splits(
         work_df["series_id"] = work_df[composite_keys].astype(str).agg("__".join, axis=1)
         series_col = "series_id"
     elif series_col not in work_df.columns:
-        work_df["series_id"] = "default_series"
-        series_col = "series_id"
+        cand_entities = mapping.get("candidate_entity_columns") or []
+        cand_in_df = [c for c in cand_entities if c in work_df.columns]
+        if len(cand_in_df) > 1:
+            series_col = "series_id"
+            work_df[series_col] = work_df[cand_in_df].astype(str).agg("__".join, axis=1)
+        elif len(cand_in_df) == 1:
+            series_col = cand_in_df[0]
+        elif "series_id" in work_df.columns:
+            series_col = "series_id"
+        else:
+            work_df["series_id"] = "default_series"
+            series_col = "series_id"
 
     all_dates = pd.Series(work_df[date_col].unique()).sort_values().reset_index(drop=True)
     total_dates = len(all_dates)

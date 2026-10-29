@@ -635,4 +635,50 @@ def test_single_series_backtesting_suite():
     assert suite["table_3_series_evaluations"][0]["series_id"] == "default_series"
 
 
+# 26. Walmart weekly store sales schema backtest evaluation (Store, Dept, Date, Weekly_Sales, IsHoliday)
+def test_walmart_store_sales_schema_backtesting():
+    from app.data.loader import detect_candidate_columns
+    ds_id = "DS_WALMART_TEST_SUITE"
+    dates = pd.date_range("2010-02-05", periods=120, freq="W-FRI")
+    
+    # Create two store-dept combinations
+    df_part1 = pd.DataFrame({
+        "Store": 1,
+        "Dept": 1,
+        "Date": dates.strftime("%Y-%m-%d"),
+        "Weekly_Sales": np.linspace(20000, 30000, 120) + np.random.normal(0, 500, 120),
+        "IsHoliday": [False] * 120
+    })
+    df_part2 = pd.DataFrame({
+        "Store": 1,
+        "Dept": 2,
+        "Date": dates.strftime("%Y-%m-%d"),
+        "Weekly_Sales": np.linspace(40000, 50000, 120) + np.random.normal(0, 800, 120),
+        "IsHoliday": [False] * 120
+    })
+    full_df = pd.concat([df_part1, df_part2], ignore_index=True)
+
+    mapping = detect_candidate_columns(list(full_df.columns))
+    assert mapping["date"] == "Date"
+    assert mapping["target"] == "Weekly_Sales"
+    assert "Store" in mapping["candidate_entity_columns"]
+    assert "Dept" in mapping["candidate_entity_columns"]
+
+    save_dataset(ds_id, full_df, "walmart_train.csv", mapping=mapping)
+
+    suite = BacktestingEngine.run_backtest_suite(
+        dataset_id=ds_id,
+        models=["arima", "lightgbm"],
+        horizons=[7, 28],
+        n_folds=2,
+    )
+
+    assert suite["total_series_evaluated"] >= 1
+    assert "7D" in suite["horizons_evaluated"]
+    assert "28D" in suite["horizons_evaluated"]
+    assert suite["table_1_model_x_horizon_mape"]["arima"]["7D"] is not None
+    assert suite["table_1_model_x_horizon_mape"]["lightgbm"]["7D"] is not None
+
+
+
 

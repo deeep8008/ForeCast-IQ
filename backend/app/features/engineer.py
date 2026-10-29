@@ -12,9 +12,33 @@ Features:
   - LightGBM: tabular feature matrix with lags, rolling statistics, calendar, and static entity categories
   - DeepAR / TFT: Darts-ready long format with past & future covariates
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import pandas as pd
 import numpy as np
+
+
+def _resolve_cols(df: pd.DataFrame, mapping: Dict[str, Any]) -> Tuple[str, str, str]:
+    date_col = mapping.get("date") or "date"
+    if date_col not in df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]:
+            m = next((c for c in df.columns if c.lower() == cand), None)
+            if m:
+                date_col = m
+                break
+    target_col = mapping.get("target") or "target"
+    if target_col not in df.columns:
+        for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+            m = next((c for c in df.columns if c.lower() == cand), None)
+            if m:
+                target_col = m
+                break
+    series_col = mapping.get("series_id") or "series_id"
+    if series_col not in df.columns:
+        cand_entities = mapping.get("candidate_entity_columns") or []
+        cand_in_df = [c for c in cand_entities if c in df.columns]
+        if len(cand_in_df) >= 1:
+            series_col = cand_in_df[0]
+    return date_col, series_col, target_col
 
 
 def engineer_time_series_features(
@@ -29,9 +53,7 @@ def engineer_time_series_features(
     2. Autoregressive lags computed per series
     3. Rolling statistics computed per series
     """
-    date_col = mapping.get("date", "date")
-    series_col = mapping.get("series_id", "series_id")
-    target_col = mapping.get("target", "target")
+    date_col, series_col, target_col = _resolve_cols(df, mapping)
 
     if lag_list is None:
         lag_list = [1, 7, 14, 28]
@@ -86,9 +108,7 @@ def prepare_arima_dataset(
     Format univariate regular time-series dataset for ARIMA / SARIMA.
     Returns: date, target for the selected or first series.
     """
-    date_col = mapping.get("date", "date")
-    series_col = mapping.get("series_id", "series_id")
-    target_col = mapping.get("target", "target")
+    date_col, series_col, target_col = _resolve_cols(df, mapping)
 
     work_df = df.copy()
     series_col = mapping.get("series_id") or "series_id"
@@ -120,9 +140,7 @@ def prepare_prophet_dataset(
     """
     Format standard Prophet dataset (ds, y) with optional known covariates.
     """
-    date_col = mapping.get("date", "date")
-    series_col = mapping.get("series_id", "series_id")
-    target_col = mapping.get("target", "target")
+    date_col, series_col, target_col = _resolve_cols(df, mapping)
 
     work_df = df.copy()
     series_col = mapping.get("series_id") or "series_id"
@@ -181,9 +199,7 @@ def prepare_darts_dataset(
     Package series metadata and arrays ready for Darts TimeSeries conversion
     (for DeepAR and Temporal Fusion Transformer TFT models).
     """
-    date_col = mapping.get("date", "date")
-    series_col = mapping.get("series_id", "series_id")
-    target_col = mapping.get("target", "target")
+    date_col, series_col, target_col = _resolve_cols(df, mapping)
 
     work_df = df.copy()
     series_col = mapping.get("series_id") or "series_id"

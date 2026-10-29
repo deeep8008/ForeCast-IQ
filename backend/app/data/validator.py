@@ -29,10 +29,24 @@ def validate_schema_and_series(
     warnings: List[str] = []
     missing_mandatory: List[str] = []
 
-    date_col = mapping.get("date", "")
-    series_col = mapping.get("series_id", "")
-    target_col = mapping.get("target", "")
+    date_col = mapping.get("date") or ""
+    series_col = mapping.get("series_id") or ""
+    target_col = mapping.get("target") or ""
     composite_keys = mapping.get("composite_series_keys") or []
+
+    # Defensive fallback check for date and target columns
+    if not date_col or date_col not in df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]:
+            m = next((c for c in df.columns if c.lower() == cand), None)
+            if m:
+                date_col = m
+                break
+    if not target_col or target_col not in df.columns:
+        for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+            m = next((c for c in df.columns if c.lower() == cand), None)
+            if m:
+                target_col = m
+                break
 
     # 1. Check Mandatory Column Existence (Only date and target are mandatory inputs)
     if not date_col or date_col not in df.columns:
@@ -72,15 +86,15 @@ def validate_schema_and_series(
     effective_series_name = series_col
     effective_series_series = None
 
-    if series_col and series_col in df.columns:
+    if composite_keys and all(ck in df.columns for ck in composite_keys):
+        effective_series_name = "__composite_series__"
+        # Synthesize composite series representation
+        effective_series_series = df[composite_keys].astype(str).agg("__".join, axis=1)
+    elif series_col and series_col in df.columns:
         effective_series_series = df[series_col]
         empty_series_count = int(effective_series_series.isna().sum()) + int((effective_series_series.dropna().astype(str).str.strip().isin(["", "nan", "none", "null"])).sum())
         if empty_series_count > 0:
             errors.append(f"Series ID column '{series_col}' contains {empty_series_count} empty or null series identifier(s).")
-    elif composite_keys and all(ck in df.columns for ck in composite_keys):
-        effective_series_name = "__composite_series__"
-        # Synthesize composite series representation
-        effective_series_series = df[composite_keys].astype(str).agg("__".join, axis=1)
     else:
         # No explicit series_id and no composite keys
         # Check if dataset appears to be single series or ambiguous multi-series

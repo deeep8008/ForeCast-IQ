@@ -639,6 +639,24 @@ def _get_series_training_data(
             df["series_id"] = "default_series"
             series_col = "series_id"
 
+    # Defensive fallback for date and target columns
+    if date_col not in df.columns:
+        for cand in ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]:
+            m = next((c for c in df.columns if c.lower() == cand), None)
+            if m:
+                date_col = m
+                break
+    if target_col not in df.columns:
+        for cand in ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]:
+            m = next((c for c in df.columns if c.lower() == cand), None)
+            if m:
+                target_col = m
+                break
+
+    mapping["date"] = date_col
+    mapping["target"] = target_col
+    mapping["series_id"] = series_col
+
     # Filter to requested series
     series_df = df[df[series_col].astype(str) == str(series_id)].copy()
     if series_df.empty:
@@ -681,8 +699,8 @@ def generate_arima_forecast(
     Fit and generate real out-of-sample forecast using statsmodels ARIMA.
     """
     series_df, mapping = _get_series_training_data(dataset_id, series_id)
-    time_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    time_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
 
     forecaster = ArimaForecaster(p=p, d=d, q=q)
     try:
@@ -713,8 +731,8 @@ def generate_sarima_forecast(
     Fit and generate real out-of-sample forecast using statsmodels SARIMA.
     """
     series_df, mapping = _get_series_training_data(dataset_id, series_id)
-    time_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    time_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
 
     forecaster = SarimaForecaster(
         order=(p, d, q),
@@ -743,8 +761,8 @@ def generate_prophet_forecast(
     Fit and generate real out-of-sample forecast using Meta Prophet.
     """
     series_df, mapping = _get_series_training_data(dataset_id, series_id)
-    time_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    time_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
 
     forecaster = ProphetForecaster(
         weekly_seasonality=weekly_seasonality,
@@ -774,8 +792,8 @@ def generate_lightgbm_forecast(
     Fit and generate real multi-step recursive forecast using LightGBM regressor.
     """
     series_df, mapping = _get_series_training_data(dataset_id, series_id)
-    time_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    time_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
 
     forecaster = LightgbmForecaster(
         n_estimators=n_estimators,
@@ -807,8 +825,8 @@ def generate_deepar_forecast(
     Fit and generate real probabilistic multi-horizon forecast using Darts DeepAR (RNN with GaussianLikelihood).
     """
     series_df, mapping = _get_series_training_data(dataset_id, series_id)
-    time_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    time_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
 
     forecaster = DeeparForecaster(
         epochs=epochs,
@@ -841,8 +859,8 @@ def generate_tft_forecast(
     Fit and generate real multi-horizon forecast using Darts Temporal Fusion Transformer (TFT).
     """
     series_df, mapping = _get_series_training_data(dataset_id, series_id)
-    time_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    time_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
 
     forecaster = TftForecaster(
         epochs=epochs,
@@ -901,7 +919,9 @@ def run_evaluation_backtest(req: BacktestRequest):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Backtesting execution failed: {str(e)}")
+        logger.exception(f"Backtesting execution failed: {e}")
+        err_msg = str(e).strip() if str(e).strip() else f"{type(e).__name__}"
+        raise HTTPException(status_code=500, detail=f"Backtesting execution failed: {err_msg}")
 
 
 @router.get("/evaluation/{dataset_id}", response_model=EvaluationSummaryResponse)

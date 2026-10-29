@@ -38,6 +38,58 @@ logger = logging.getLogger("forecastiq.evaluation.backtesting")
 EVALUATION_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
+def _resolve_column_defensive(
+    df: pd.DataFrame,
+    mapping: Dict[str, Any],
+    canonical_key: str,
+    fallbacks: List[str]
+) -> str:
+    """Find the column name in df matching canonical field or aliases with bulletproof fallback."""
+    # 1. Direct from mapping
+    col = mapping.get(canonical_key)
+    if col and col in df.columns:
+        return col
+
+    # 2. From optional mapping
+    if "optional" in mapping and isinstance(mapping["optional"], dict):
+        opt_col = mapping["optional"].get(canonical_key)
+        if opt_col and opt_col in df.columns:
+            return opt_col
+
+    col_lower = {c.lower().strip(): c for c in df.columns}
+
+    # 3. Exact match in fallback candidates
+    for cand in fallbacks:
+        if cand.lower().strip() in col_lower:
+            return col_lower[cand.lower().strip()]
+
+    # 4. Normalized match (ignoring underscores, spaces, dashes)
+    clean_cols = {c.lower().replace("_", "").replace(" ", "").replace("-", ""): c for c in df.columns}
+    for cand in fallbacks:
+        clean_c = cand.lower().replace("_", "").replace(" ", "").replace("-", "")
+        if clean_c in clean_cols:
+            return clean_cols[clean_c]
+
+    # 5. Suffix or substring match for compound column names
+    for c_clean, orig in col_lower.items():
+        for cand in fallbacks:
+            a_clean = cand.lower().strip()
+            if len(a_clean) >= 4 and (
+                c_clean.endswith(f"_{a_clean}")
+                or c_clean.startswith(f"{a_clean}_")
+                or f"_{a_clean}_" in c_clean
+            ):
+                return orig
+
+    # 6. Fallback heuristics: numeric column for target, first column for date
+    if canonical_key == "target":
+        num_cols = [c for c in df.select_dtypes(include=["number"]).columns if c not in ["series_id", "id"]]
+        if num_cols:
+            return num_cols[0]
+
+    return df.columns[0]
+
+
 class BacktestingEngine:
     """
     Chronological rolling-origin backtesting engine.
@@ -126,8 +178,14 @@ class BacktestingEngine:
         """
         Evaluate a single model on a single series using chronological rolling-origin backtesting.
         """
-        time_col = mapping.get("date", "date")
-        target_col = mapping.get("target", "target")
+        time_col = _resolve_column_defensive(
+            series_df, mapping, "date",
+            ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]
+        )
+        target_col = _resolve_column_defensive(
+            series_df, mapping, "target",
+            ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]
+        )
         model_kwargs = model_kwargs or {}
 
         try:
@@ -294,7 +352,7 @@ class BacktestingEngine:
             raise ValueError(f"Dataset with ID '{dataset_id}' not found.")
 
         df = entry["df"].copy()
-        mapping = entry.get("mapping") or detect_candidate_columns(list(df.columns))
+        mapping = dict(entry.get("mapping") or detect_candidate_columns(list(df.columns)))
         series_col = mapping.get("series_id") or "series_id"
         composite_keys = mapping.get("composite_series_keys") or []
 
@@ -313,8 +371,31 @@ class BacktestingEngine:
                 df["series_id"] = df[matched_col].astype(str)
                 series_col = "series_id"
             else:
-                df["series_id"] = "default_series"
-                series_col = "series_id"
+                cand_entities = mapping.get("candidate_entity_columns") or []
+                cand_in_df = [c for c in cand_entities if c in df.columns]
+                if len(cand_in_df) > 1:
+                    df["series_id"] = df[cand_in_df].astype(str).agg("__".join, axis=1)
+                    series_col = "series_id"
+                elif len(cand_in_df) == 1:
+                    series_col = cand_in_df[0]
+                elif "series_id" in df.columns:
+                    series_col = "series_id"
+                else:
+                    df["series_id"] = "default_series"
+                    series_col = "series_id"
+
+        # Resolve time_col and target_col defensively and sync mapping
+        time_col = _resolve_column_defensive(
+            df, mapping, "date",
+            ["date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date", "order_date"]
+        )
+        target_col = _resolve_column_defensive(
+            df, mapping, "target",
+            ["weekly_sales", "monthly_sales", "daily_sales", "total_sales", "sales", "target", "demand", "units", "quantity", "val", "value", "revenue", "y", "pjme_mw", "#passengers"]
+        )
+        mapping["date"] = time_col
+        mapping["target"] = target_col
+        mapping["series_id"] = series_col
 
         # Resolve optional scope columns
         store_col = mapping.get("optional", {}).get("store_id") if isinstance(mapping.get("optional"), dict) else None

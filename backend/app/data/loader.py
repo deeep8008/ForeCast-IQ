@@ -20,15 +20,43 @@ def detect_candidate_columns(columns: List[str]) -> Dict[str, Any]:
     col_lower = {col.lower().strip(): col for col in columns}
 
     def match_alias(aliases: List[str]) -> Optional[str]:
+        # 1. Exact match
         for alias in aliases:
             if alias.lower() in col_lower:
                 return col_lower[alias.lower()]
+        # 2. Normalized match (remove underscores, spaces, hyphens)
+        clean_cols = {col.lower().replace("_", "").replace(" ", "").replace("-", ""): col for col in columns}
+        for alias in aliases:
+            clean_alias = alias.lower().replace("_", "").replace(" ", "").replace("-", "")
+            if clean_alias in clean_cols:
+                return clean_cols[clean_alias]
+        # 3. Suffix or substring match for compound column names (e.g. Weekly_Sales, order_date)
+        for col_clean, original in col_lower.items():
+            for alias in aliases:
+                a_clean = alias.lower().strip()
+                if len(a_clean) >= 4 and (
+                    col_clean.endswith(f"_{a_clean}")
+                    or col_clean.startswith(f"{a_clean}_")
+                    or f"_{a_clean}_" in col_clean
+                    or a_clean in col_clean.split("_")
+                ):
+                    return original
         return None
 
     # Mandatory
-    date_col = match_alias(["date", "datetime", "timestamp", "ds", "time", "d", "observation_date"])
-    series_col = match_alias(["series_id", "series", "store_item", "unique_id", "ts_id"])
-    target_col = match_alias(["target", "sales", "demand", "units", "y", "quantity", "val", "value", "revenue"])
+    date_col = match_alias([
+        "date", "datetime", "timestamp", "ds", "time", "d", "month", "observation_date",
+        "order_date", "transaction_date", "period", "week", "day", "year"
+    ])
+    series_col = match_alias([
+        "series_id", "series", "store_item", "store_dept", "unique_id", "ts_id", "seriesid"
+    ])
+    target_col = match_alias([
+        "weekly_sales", "monthly_sales", "daily_sales", "total_sales", "store_sales",
+        "sales", "target", "demand", "units", "unit_sales", "quantity", "val", "value",
+        "revenue", "volume", "turnover", "qty", "amount", "count", "transactions",
+        "passengers", "#passengers", "pjme_mw", "mw", "load", "power", "y"
+    ])
 
     # Optional canonical
     optional_mapped: Dict[str, str] = {}
@@ -84,7 +112,7 @@ def detect_candidate_columns(columns: List[str]) -> Dict[str, Any]:
         "holiday", "event_name", "is_holiday", "holiday_name",
         "weather", "temperature", "temp", "precipitation", "rain",
         "target", "sales", "demand", "units", "y", "quantity", "val", "value", "revenue",
-        "date", "datetime", "timestamp", "ds", "time", "d", "observation_date"
+        "date", "datetime", "timestamp", "ds", "time", "d", "observation_date", "month"
     }
 
     for col in columns:
@@ -98,12 +126,32 @@ def detect_candidate_columns(columns: List[str]) -> Dict[str, Any]:
         if any(ek in clow for ek in entity_keywords):
             candidate_entities.append(col)
 
+    # If series_col was not explicitly found in columns, resolve from candidate_entities
+    composite_keys: List[str] = []
+    if not series_col:
+        if len(candidate_entities) > 1:
+            composite_keys = list(candidate_entities)
+            series_col = ""
+        elif len(candidate_entities) == 1:
+            series_col = candidate_entities[0]
+        elif "series_id" in col_lower:
+            series_col = col_lower["series_id"]
+
+    # Final fallback for target_col if unassigned
+    if not target_col:
+        for col in columns:
+            clow = col.lower().strip()
+            if clow not in covariate_exclusions and col != date_col and col != series_col and col not in candidate_entities:
+                if any(m in clow for m in ["sales", "demand", "target", "revenue", "units", "volume"]):
+                    target_col = col
+                    break
+
     return {
         "date": date_col or "",
         "series_id": series_col or "",
         "target": target_col or "",
         "candidate_entity_columns": candidate_entities,
-        "composite_series_keys": [],
+        "composite_series_keys": composite_keys,
         "optional": optional_mapped,
     }
 
