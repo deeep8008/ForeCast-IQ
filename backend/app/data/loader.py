@@ -27,7 +27,7 @@ def detect_candidate_columns(columns: List[str]) -> Dict[str, Any]:
 
     # Mandatory
     date_col = match_alias(["date", "datetime", "timestamp", "ds", "time", "d", "observation_date"])
-    series_col = match_alias(["series_id", "series", "store_item", "unique_id", "ts_id"])
+    series_col = match_alias(["series_id", "series", "store_item", "unique_id", "ts_id", "store", "item_id", "sku"])
     target_col = match_alias(["target", "sales", "demand", "units", "y", "quantity", "val", "value", "revenue"])
 
     # Optional canonical
@@ -132,17 +132,20 @@ def load_csv_from_bytes(file_bytes: bytes, filename: str) -> Tuple[str, pd.DataF
     return dataset_id, df
 
 
-def save_dataset(dataset_id: str, df: pd.DataFrame, filename: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+def save_dataset(dataset_id: str, df: pd.DataFrame, filename: str, metadata: Optional[Dict[str, Any]] = None, mapping: Optional[Dict[str, Any]] = None) -> None:
     """Store dataset in in-memory session cache and persist metadata and data to MongoDB."""
     meta = metadata or {}
     meta["rows"] = len(df)
     meta["columns"] = list(df.columns)
     meta["filename"] = filename
+    if mapping:
+        meta["mapping"] = mapping
 
     DATASET_STORE[dataset_id] = {
         "df": df,
         "filename": filename,
         "metadata": meta,
+        "mapping": mapping or meta.get("mapping"),
     }
 
     try:
@@ -175,6 +178,7 @@ def get_dataset(dataset_id: str) -> Optional[Dict[str, Any]]:
                     "df": df,
                     "filename": filename,
                     "metadata": meta,
+                    "mapping": meta.get("mapping"),
                 }
                 DATASET_STORE[dataset_id] = entry
                 return entry

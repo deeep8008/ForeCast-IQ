@@ -40,6 +40,10 @@ def engineer_time_series_features(
 
     # Create work dataframe sorted strictly chronologically per series
     work_df = df.copy()
+    series_col = mapping.get("series_id") or "series_id"
+    if series_col not in work_df.columns:
+        work_df["series_id"] = "default_series"
+        series_col = "series_id"
     work_df[date_col] = pd.to_datetime(work_df[date_col], errors="coerce")
     work_df = work_df.sort_values(by=[series_col, date_col]).reset_index(drop=True)
 
@@ -87,6 +91,10 @@ def prepare_arima_dataset(
     target_col = mapping.get("target", "target")
 
     work_df = df.copy()
+    series_col = mapping.get("series_id") or "series_id"
+    if series_col not in work_df.columns:
+        work_df["series_id"] = "default_series"
+        series_col = "series_id"
     if series_id_val:
         work_df = work_df[work_df[series_col].astype(str) == str(series_id_val)]
     else:
@@ -117,6 +125,10 @@ def prepare_prophet_dataset(
     target_col = mapping.get("target", "target")
 
     work_df = df.copy()
+    series_col = mapping.get("series_id") or "series_id"
+    if series_col not in work_df.columns:
+        work_df["series_id"] = "default_series"
+        series_col = "series_id"
     if series_id_val:
         work_df = work_df[work_df[series_col].astype(str) == str(series_id_val)]
     else:
@@ -174,6 +186,10 @@ def prepare_darts_dataset(
     target_col = mapping.get("target", "target")
 
     work_df = df.copy()
+    series_col = mapping.get("series_id") or "series_id"
+    if series_col not in work_df.columns:
+        work_df["series_id"] = "default_series"
+        series_col = "series_id"
     work_df[date_col] = pd.to_datetime(work_df[date_col], errors="coerce")
     work_df = work_df.sort_values(by=[series_col, date_col]).reset_index(drop=True)
 

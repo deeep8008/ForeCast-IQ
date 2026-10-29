@@ -156,10 +156,9 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
             (uploadedDataset.previewRows || []).map(r => r.series_id || r[uploadedDataset.mapping?.series_id]).filter(Boolean)
           )];
           const fallback = sqSeries.length > 0 ? sqSeries : prSeries;
-          if (fallback.length > 0) {
-            setAvailableSeries(fallback);
-            setSelectedSeries(fallback[0]);
-          }
+          const resolvedFallback = fallback.length > 0 ? fallback : ['default_series'];
+          setAvailableSeries(resolvedFallback);
+          setSelectedSeries(resolvedFallback[0]);
           setIsLoadingFilters(false);
           return;
         }
@@ -183,13 +182,14 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
               if (!isMounted) return;
               const storeAf = storeData?.available_filters || af;
               const storeItems = storeAf.items || items;
-              const storeSeries = storeAf.series || series;
+              const rawStoreSeries = storeAf.series || series || [];
+              const storeSeries = rawStoreSeries.length > 0 ? rawStoreSeries : ['default_series'];
 
               setAvailableItems(storeItems);
               setAvailableSeries(storeSeries);
 
               const initialItem = storeItems.length > 0 ? storeItems[0] : '';
-              const initialSeries = storeSeries.length > 0 ? storeSeries[0] : '';
+              const initialSeries = storeSeries[0];
               setSelectedItem(initialItem);
               setSelectedSeries(initialSeries);
 
@@ -200,9 +200,10 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
             });
         } else {
           setAvailableItems(items);
-          setAvailableSeries(series);
+          const resolvedSeries = series.length > 0 ? series : ['default_series'];
+          setAvailableSeries(resolvedSeries);
           setSelectedItem(items.length > 0 ? items[0] : '');
-          setSelectedSeries(series.length > 0 ? series[0] : '');
+          setSelectedSeries(resolvedSeries[0]);
           if (data.trend) {
             setHistoricalTrend(data.trend);
           }
@@ -366,9 +367,9 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
       return;
     }
 
-    if (!selectedSeries) {
-      setForecastError('Please select a valid series to generate a forecast.');
-      return;
+    const targetSeries = selectedSeries || (availableSeries.length > 0 ? availableSeries[0] : 'default_series');
+    if (!selectedSeries && targetSeries) {
+      setSelectedSeries(targetSeries);
     }
 
     setForecastError(null);
@@ -383,7 +384,7 @@ export default function GenerateForecastPage({ onNavigate, uploadedDataset = nul
       setGenerationStep(2);
       const realRes = await generateForecastInBackend({
         dataset_id: uploadedDataset.dataset_id,
-        series_id: selectedSeries,
+        series_id: targetSeries,
         model: modelId,
         horizon: horizonDays,
       });

@@ -59,7 +59,11 @@ def compute_explorer_analytics(
 
     date_col = _resolve_column(df, mapping, "date", ["date", "datetime", "timestamp", "ds", "time"]) or df.columns[0]
     target_col = _resolve_column(df, mapping, "target", ["target", "sales", "demand", "units", "quantity", "val", "value"]) or df.columns[-1]
-    series_col = _resolve_column(df, mapping, "series_id", ["series_id", "series", "id", "sku", "item_id"]) or df.columns[0]
+    series_col = mapping.get("series_id")
+    if not series_col or series_col not in df.columns:
+        series_col = _resolve_column(df, mapping, "series_id", ["series_id", "series", "store_item", "unique_id", "ts_id", "store", "item_id", "item", "sku", "id"])
+    if not series_col or series_col not in df.columns:
+        series_col = "series_id" if "series_id" in df.columns else None
     
     store_col = _resolve_column(df, mapping, "store_id", ["store_id", "store", "branch", "warehouse", "location"])
     cat_col = _resolve_column(df, mapping, "category", ["category", "dept_id", "cat_id", "department", "cat"])
@@ -100,8 +104,12 @@ def compute_explorer_analytics(
         af_item_df = af_cat_df[af_cat_df[item_col].astype(str) == str(item_id)]
 
     all_series: List[str] = []
-    if has_series:
+    if has_series and series_col in af_item_df.columns:
         all_series = sorted([str(x) for x in af_item_df[series_col].dropna().unique().tolist()])
+    if not all_series and "series_id" in df.columns:
+        all_series = sorted([str(x) for x in df["series_id"].dropna().unique().tolist()])
+    if not all_series:
+        all_series = ["default_series"]
 
     # Apply ONLY explicitly-provided filters to active_df (no auto-defaulting)
     active_df = df.copy()

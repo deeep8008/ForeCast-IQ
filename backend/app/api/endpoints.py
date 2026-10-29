@@ -179,6 +179,15 @@ async def upload_dataset(
     # Detect candidate mapping
     initial_mapping = detect_candidate_columns(list(df.columns))
     
+    # Store initial mapping in DATASET_STORE and pre-clean
+    from ..data.loader import DATASET_STORE
+    if dataset_id in DATASET_STORE:
+        DATASET_STORE[dataset_id]["mapping"] = initial_mapping
+    try:
+        clean_canonical_dataset(dataset_id, df, initial_mapping)
+    except Exception:
+        pass
+
     # Run validation to determine status
     val_report, _ = validate_schema_and_series(dataset_id, df, initial_mapping)
 
@@ -337,6 +346,17 @@ def remap_dataset_columns(
         "candidate_entity_columns": mapping.candidate_entity_columns or [],
         "optional": mapping.optional
     }
+
+    # Persist the remapped columns in dataset store and re-clean
+    entry["mapping"] = mapping_dict
+    from ..data.loader import DATASET_STORE
+    if dataset_id in DATASET_STORE:
+        DATASET_STORE[dataset_id]["mapping"] = mapping_dict
+
+    try:
+        clean_canonical_dataset(dataset_id, df, mapping_dict)
+    except Exception:
+        pass
 
     return evaluate_dataset_readiness(dataset_id, df, filename, mapping_dict)
 
@@ -586,23 +606,53 @@ def _get_series_training_data(
     if not entry:
         raise HTTPException(status_code=404, detail=f"Dataset with ID '{dataset_id}' not found.")
 
-    df = entry["df"]
+    df = entry["df"].copy()
     mapping = entry.get("mapping") or detect_candidate_columns(list(df.columns))
 
-    series_col = mapping.get("series_id", "series_id")
-    date_col = mapping.get("date", "date")
-    target_col = mapping.get("target", "target")
+    series_col = mapping.get("series_id") or "series_id"
+    date_col = mapping.get("date") or "date"
+    target_col = mapping.get("target") or "target"
+    composite_keys = mapping.get("composite_series_keys") or []
 
-    if series_col not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Series ID column '{series_col}' not found in dataset.")
+    # 1. Composite series keys support
+    if composite_keys and all(ck in df.columns for ck in composite_keys) and series_col not in df.columns:
+        df["series_id"] = df[composite_keys].astype(str).agg("__".join, axis=1)
+        series_col = "series_id"
+    # 2. Check if series_col is valid and in df
+    elif series_col not in df.columns:
+        # Check if series_id requested matches values in any non-date/target column (e.g. store, item, etc.)
+        matched_col = None
+        for col in df.columns:
+            if col not in [date_col, target_col]:
+                unique_vals = [str(x) for x in df[col].dropna().unique()[:100]]
+                if str(series_id) in unique_vals:
+                    matched_col = col
+                    break
+        if matched_col:
+            series_col = matched_col
+        elif "series_id" in df.columns:
+            series_col = "series_id"
+        elif "default_series" in df.columns:
+            series_col = "default_series"
+        else:
+            # Single-series dataset fallback: create default series
+            df["series_id"] = "default_series"
+            series_col = "series_id"
 
+    # Filter to requested series
     series_df = df[df[series_col].astype(str) == str(series_id)].copy()
     if series_df.empty:
-        available_series = list(df[series_col].astype(str).unique()[:5])
-        raise HTTPException(
-            status_code=404,
-            detail=f"Series '{series_id}' not found. Available series sample: {available_series}"
-        )
+        # If single series dataset or series_id is default_series / all / empty
+        if str(series_id) in ["default_series", "all", "None", "", "1"] and (len(df[series_col].unique()) == 1 or series_col == "series_id"):
+            series_df = df.copy()
+        elif str(series_id) in ["default_series", "all"]:
+            series_df = df.copy()
+        else:
+            available_series = list(df[series_col].astype(str).unique()[:5])
+            raise HTTPException(
+                status_code=404,
+                detail=f"Series '{series_id}' not found. Available series sample: {available_series}"
+            )
 
     return series_df, mapping
 
